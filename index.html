@@ -7,362 +7,188 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --orange: #FF6B35; --pink: #FF3CAC; }
+  body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow: hidden; }
 
-  :root {
-    --orange: #FF6B35;
-    --pink: #FF3CAC;
-    --deep-orange: #FF4500;
-    --coral: #FF7F6B;
-    --light: #FFF5F0;
-  }
-
-  body {
-    font-family: 'Inter', sans-serif;
-    min-height: 100vh;
-    overflow: hidden;
-    position: relative;
-  }
-
-  /* ── WATERMARK ── */
+  /* WATERMARK */
   .watermark {
-    position: fixed;
-    top: 22px;
-    right: 28px;
-    z-index: 1000;
-    display: flex;
-    align-items: baseline;
-    gap: 5px;
-    pointer-events: none;
-    user-select: none;
+    position: fixed; top: 22px; right: 28px; z-index: 1000;
+    display: flex; align-items: baseline; gap: 5px;
+    pointer-events: none; user-select: none;
   }
   .watermark-made {
-    font-family: 'Inter', sans-serif;
-    font-weight: 400;
-    font-size: 13px;
-    color: rgba(255,255,255,0.85);
-    letter-spacing: 0.04em;
+    font-family: 'Inter', sans-serif; font-weight: 400; font-size: 13px;
+    color: rgba(255,255,255,0.85); letter-spacing: 0.04em;
     text-shadow: 0 1px 8px rgba(0,0,0,0.25);
   }
   .watermark-sammy {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    color: #fff;
-    letter-spacing: 0.06em;
-    text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: #fff;
+    letter-spacing: 0.06em; text-shadow: 0 2px 12px rgba(0,0,0,0.3);
   }
 
-  /* ── PAGES ── */
+  /* PAGES */
   .page {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transition: opacity 0.7s cubic-bezier(.4,0,.2,1), transform 0.7s cubic-bezier(.4,0,.2,1);
+    position: fixed; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: opacity 0.65s cubic-bezier(.4,0,.2,1), transform 0.65s cubic-bezier(.4,0,.2,1);
   }
-  .page.hidden {
-    opacity: 0;
-    pointer-events: none;
-    transform: scale(1.04);
-  }
+  .page.hidden { opacity: 0; pointer-events: none; transform: scale(1.04); }
 
-  /* ── LANDING PAGE ── */
+  /* LANDING */
   #landing {
     background: linear-gradient(135deg, #FF6B35 0%, #FF3CAC 55%, #FF6B35 100%);
     background-size: 300% 300%;
-    animation: gradientShift 7s ease infinite;
+    animation: gradShift 7s ease infinite;
   }
-  @keyframes gradientShift {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
+  @keyframes gradShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
-
-  /* Floating shapes */
-  .shapes {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    pointer-events: none;
+  .shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .shape { position: absolute; border-radius: 50%; opacity: 0.12; animation: floatS linear infinite; }
+  .shape:nth-child(1) { width:340px;height:340px;background:#fff;top:-80px;left:-80px;animation-duration:18s; }
+  .shape:nth-child(2) { width:200px;height:200px;background:#FFD700;bottom:-40px;right:10%;animation-duration:14s;animation-delay:-4s; }
+  .shape:nth-child(3) { width:130px;height:130px;background:#fff;top:40%;left:10%;animation-duration:22s;animation-delay:-9s; }
+  .shape:nth-child(4) { width:260px;height:260px;background:#FF4500;bottom:15%;left:-60px;animation-duration:16s;animation-delay:-2s; }
+  .shape:nth-child(5) { width:90px;height:90px;background:#fff;top:15%;right:15%;animation-duration:12s;animation-delay:-6s; }
+  @keyframes floatS {
+    0% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-30px) rotate(180deg); }
+    100% { transform: translateY(0) rotate(360deg); }
   }
-  .shape {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.12;
-    animation: floatShape linear infinite;
-  }
-  .shape:nth-child(1) { width: 340px; height: 340px; background: #fff; top: -80px; left: -80px; animation-duration: 18s; }
-  .shape:nth-child(2) { width: 200px; height: 200px; background: #FFD700; bottom: -40px; right: 10%; animation-duration: 14s; animation-delay: -4s; }
-  .shape:nth-child(3) { width: 130px; height: 130px; background: #fff; top: 40%; left: 10%; animation-duration: 22s; animation-delay: -9s; }
-  .shape:nth-child(4) { width: 260px; height: 260px; background: #FF4500; bottom: 15%; left: -60px; animation-duration: 16s; animation-delay: -2s; }
-  .shape:nth-child(5) { width: 90px; height: 90px; background: #fff; top: 15%; right: 15%; animation-duration: 12s; animation-delay: -6s; }
-
-  @keyframes floatShape {
-    0%   { transform: translateY(0px) rotate(0deg); }
-    50%  { transform: translateY(-30px) rotate(180deg); }
-    100% { transform: translateY(0px) rotate(360deg); }
-  }
-
   .landing-title {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: clamp(56px, 10vw, 100px);
-    color: #fff;
-    letter-spacing: 0.08em;
-    text-align: center;
-    line-height: 1;
+    font-size: clamp(56px,10vw,100px); color: #fff;
+    letter-spacing: 0.08em; text-align: center; line-height: 1;
     text-shadow: 0 4px 30px rgba(0,0,0,0.2);
-    position: relative;
-    z-index: 1;
-    margin-bottom: 12px;
+    position: relative; z-index: 1; margin-bottom: 12px;
   }
   .landing-sub {
-    font-family: 'Inter', sans-serif;
-    font-size: 15px;
-    font-weight: 400;
-    color: rgba(255,255,255,0.82);
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    margin-bottom: 60px;
-    position: relative;
-    z-index: 1;
+    font-size: 15px; color: rgba(255,255,255,0.82);
+    letter-spacing: 0.14em; text-transform: uppercase;
+    margin-bottom: 60px; position: relative; z-index: 1;
   }
-
-  /* Shuffle Button */
   .btn-shuffle {
-    position: relative;
-    z-index: 1;
-    background: #fff;
-    border: none;
-    border-radius: 100px;
-    padding: 20px 52px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 22px;
-    letter-spacing: 0.1em;
-    color: var(--orange);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-    overflow: hidden;
-  }
-  .btn-shuffle::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(255,60,172,0.08));
-    opacity: 0;
-    transition: opacity 0.2s;
+    position: relative; z-index: 1; background: #fff; border: none;
+    border-radius: 100px; padding: 20px 52px; cursor: pointer;
+    display: flex; align-items: center; gap: 14px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    letter-spacing: 0.1em; color: var(--orange);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    transition: transform 0.18s, box-shadow 0.18s;
   }
   .btn-shuffle:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 16px 50px rgba(0,0,0,0.22); }
-  .btn-shuffle:hover::before { opacity: 1; }
-  .btn-shuffle:active { transform: translateY(0) scale(0.98); }
+  .btn-shuffle:active { transform: scale(0.98); }
+  .shuffle-icon { width: 26px; height: 26px; flex-shrink: 0; }
 
-  .shuffle-icon {
-    width: 26px;
-    height: 26px;
-    flex-shrink: 0;
-  }
+  /* UPLOAD PAGE */
+  #upload-page { background: linear-gradient(160deg, #FF6B35 0%, #FF3CAC 100%); }
 
-  /* ── UPLOAD PAGE ── */
-  #upload-page {
-    background: linear-gradient(160deg, #FF6B35 0%, #FF3CAC 100%);
+  /* Back button */
+  .back-btn {
+    position: absolute; top: 24px; left: 28px; z-index: 10;
+    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
+    border-radius: 100px; padding: 9px 20px 9px 14px;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    color: #fff; font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+    backdrop-filter: blur(10px);
+    transition: background 0.15s, transform 0.15s;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.1);
   }
+  .back-btn:hover { background: rgba(255,255,255,0.3); transform: translateX(-2px); }
+  .back-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
   .upload-card {
     background: rgba(255,255,255,0.97);
-    backdrop-filter: blur(20px);
-    border-radius: 28px;
-    padding: 52px 48px 44px;
+    border-radius: 28px; padding: 44px 44px 36px;
     width: min(92vw, 520px);
     box-shadow: 0 20px 80px rgba(0,0,0,0.22);
-    position: relative;
-    z-index: 1;
+    position: relative; z-index: 1;
+    max-height: 92vh; overflow-y: auto;
   }
-
-  .back-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    color: rgba(255,255,255,0.85);
-    font-family: 'Inter', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    position: absolute;
-    top: 24px;
-    left: 28px;
-    z-index: 2;
-    transition: color 0.15s;
-  }
-  .back-btn:hover { color: #fff; }
-
   .card-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 38px;
-    letter-spacing: 0.07em;
+    font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 0.07em;
     background: linear-gradient(135deg, var(--orange), var(--pink));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     margin-bottom: 6px;
   }
-  .card-sub {
-    font-size: 13px;
-    color: #888;
-    margin-bottom: 32px;
-    font-weight: 400;
-    letter-spacing: 0.01em;
-  }
+  .card-sub { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.5; }
 
-  /* Drop zone */
   .drop-zone {
-    border: 2.5px dashed #FFBCA0;
-    border-radius: 18px;
-    background: #FFF5F0;
-    padding: 42px 20px;
-    text-align: center;
-    cursor: pointer;
+    border: 2.5px dashed #FFBCA0; border-radius: 18px; background: #FFF5F0;
+    padding: 36px 20px; text-align: center; cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
-    position: relative;
-    overflow: hidden;
+    position: relative; overflow: hidden;
   }
-  .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--orange);
-    background: #FFE8DF;
-  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--orange); background: #FFE8DF; }
   .drop-zone input[type="file"] {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    cursor: pointer;
-    width: 100%;
-    height: 100%;
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
   }
-  .drop-icon {
-    width: 52px;
-    height: 52px;
-    margin: 0 auto 14px;
-    display: block;
-  }
-  .drop-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 5px;
-  }
-  .drop-hint {
-    font-size: 12px;
-    color: #aaa;
-  }
-  .file-chosen {
-    font-size: 13px;
-    color: var(--orange);
-    font-weight: 500;
-    margin-top: 10px;
-    word-break: break-all;
-  }
+  .drop-icon { width: 50px; height: 50px; margin: 0 auto 12px; display: block; }
+  .drop-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px; }
+  .drop-hint { font-size: 12px; color: #bbb; }
+  .file-chosen { font-size: 12px; color: var(--orange); font-weight: 500; margin-top: 8px; word-break: break-all; }
 
-  /* Process button */
   .btn-process {
-    width: 100%;
-    margin-top: 24px;
-    padding: 16px;
-    border: none;
-    border-radius: 14px;
-    background: linear-gradient(135deg, var(--orange), var(--pink));
-    color: #fff;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    box-shadow: 0 6px 24px rgba(255,60,172,0.3);
+    width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: 14px;
+    background: linear-gradient(135deg, var(--orange), var(--pink)); color: #fff;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.1em;
+    cursor: pointer; box-shadow: 0 6px 24px rgba(255,60,172,0.3);
     transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   }
-  .btn-process:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,60,172,0.35); }
-  .btn-process:active:not(:disabled) { transform: translateY(0); }
-  .btn-process:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-process:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,60,172,0.38); }
+  .btn-process:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  /* ── PROGRESS SECTION ── */
-  .progress-wrap {
-    margin-top: 28px;
-    display: none;
-  }
+  .progress-wrap { margin-top: 22px; display: none; }
   .progress-wrap.show { display: block; }
-
-  .progress-label {
-    font-size: 12px;
-    color: #777;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .progress-bar-track {
-    height: 8px;
-    background: #F0E0DA;
-    border-radius: 100px;
-    overflow: hidden;
-  }
+  .progress-label { font-size: 12px; color: #777; margin-bottom: 7px; display: flex; justify-content: space-between; }
+  .progress-bar-track { height: 8px; background: #F0E0DA; border-radius: 100px; overflow: hidden; }
   .progress-bar-fill {
     height: 100%;
     background: linear-gradient(90deg, var(--orange), var(--pink));
-    border-radius: 100px;
-    width: 0%;
-    transition: width 0.3s ease;
+    border-radius: 100px; width: 0%;
+    transition: width 0.35s ease;
   }
-  .status-text {
-    font-size: 12px;
-    color: #999;
-    margin-top: 8px;
-    min-height: 18px;
-  }
+  .status-text { font-size: 12px; color: #999; margin-top: 8px; min-height: 18px; }
 
-  /* ── DOWNLOAD BUTTON ── */
-  .btn-download {
+  .info-box {
+    margin-top: 12px; padding: 11px 15px; border-radius: 12px;
+    background: #FFF8F0; border: 1px solid #FFD0B0;
+    font-size: 12px; color: #a05020; line-height: 1.6;
     display: none;
-    width: 100%;
-    margin-top: 20px;
-    padding: 16px;
-    border: none;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #1DB954, #17a349);
-    color: #fff;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 20px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    box-shadow: 0 6px 24px rgba(29,185,84,0.3);
+  }
+  .info-box.show { display: block; }
+  .info-box.error { background: #FFF0F0; border-color: #FFB0B0; color: #b02020; }
+
+  .btn-download {
+    display: none; width: 100%; margin-top: 18px; padding: 15px;
+    border: none; border-radius: 14px;
+    background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.1em;
+    cursor: pointer; box-shadow: 0 6px 24px rgba(34,197,94,0.3);
     transition: transform 0.15s, box-shadow 0.15s;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+    align-items: center; justify-content: center; gap: 10px;
   }
   .btn-download.show { display: flex; }
-  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(29,185,84,0.38); }
+  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(34,197,94,0.38); }
 
-  /* ── HIDDEN CANVAS / VIDEO ── */
-  #scratchCanvas, #inputVideo { display: none; }
+  #inputVideo { display: none; position: fixed; top: -9999px; left: -9999px; }
+  #scratchCanvas { display: none; position: fixed; top: -9999px; left: -9999px; }
 </style>
 </head>
 <body>
 
-<!-- Watermark -->
 <div class="watermark">
   <span class="watermark-made">made by</span>
   <span class="watermark-sammy">SAMMY</span>
 </div>
 
-<!-- Hidden elements for processing -->
-<video id="inputVideo" muted playsinline></video>
+<video id="inputVideo" muted playsinline preload="auto"></video>
 <canvas id="scratchCanvas"></canvas>
 
-<!-- ── LANDING PAGE ── -->
+<!-- LANDING PAGE -->
 <div class="page" id="landing">
   <div class="shapes">
     <div class="shape"></div><div class="shape"></div><div class="shape"></div>
@@ -379,16 +205,19 @@
   </button>
 </div>
 
-<!-- ── UPLOAD PAGE ── -->
+<!-- UPLOAD PAGE -->
 <div class="page hidden" id="upload-page">
+
   <button class="back-btn" id="backBtn">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
     Back
   </button>
 
   <div class="upload-card">
     <div class="card-title">Upload Video</div>
-    <div class="card-sub">We'll split it into 5-second chunks, shuffle them, and stitch it back.</div>
+    <div class="card-sub">Splits into 5-second chunks, shuffles randomly, stitches back — all in your browser.</div>
 
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="video/*">
@@ -398,7 +227,7 @@
         <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
       </svg>
       <div class="drop-title">Drop your video here</div>
-      <div class="drop-hint">or click to browse · MP4, MOV, WebM, AVI…</div>
+      <div class="drop-hint">or click to browse · MP4, MOV, WebM…</div>
       <div class="file-chosen" id="fileChosen"></div>
     </div>
 
@@ -409,33 +238,48 @@
         <span>Processing</span>
         <span id="pctLabel">0%</span>
       </div>
-      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
-      <div class="status-text" id="statusText">Getting ready…</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="status-text" id="statusText"></div>
     </div>
 
+    <div class="info-box" id="infoBox"></div>
+
     <button class="btn-download" id="downloadBtn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
       Download Shuffled Video
     </button>
   </div>
 </div>
 
 <script>
-// ── Navigation ──
+/* ═══════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════ */
 document.getElementById('goToUpload').onclick = () => {
   document.getElementById('landing').classList.add('hidden');
   document.getElementById('upload-page').classList.remove('hidden');
 };
+
 document.getElementById('backBtn').onclick = () => {
+  if (isProcessing) return;
   document.getElementById('upload-page').classList.add('hidden');
   document.getElementById('landing').classList.remove('hidden');
   resetUI();
 };
 
-// ── Drag & Drop ──
-const dropZone = document.getElementById('dropZone');
+/* ═══════════════════════════════════════════
+   FILE SELECTION
+═══════════════════════════════════════════ */
+const dropZone  = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 let selectedFile = null;
+let isProcessing = false;
 
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
@@ -444,6 +288,7 @@ dropZone.addEventListener('drop', e => {
   dropZone.classList.remove('drag-over');
   const f = e.dataTransfer.files[0];
   if (f && f.type.startsWith('video/')) handleFile(f);
+  else showInfo('⚠️ Please drop a video file.', false);
 });
 fileInput.addEventListener('change', () => {
   if (fileInput.files[0]) handleFile(fileInput.files[0]);
@@ -451,170 +296,259 @@ fileInput.addEventListener('change', () => {
 
 function handleFile(f) {
   selectedFile = f;
-  document.getElementById('fileChosen').textContent = f.name;
+  document.getElementById('fileChosen').textContent =
+    `✓  ${f.name}   (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
   document.getElementById('processBtn').disabled = false;
   document.getElementById('downloadBtn').classList.remove('show');
   document.getElementById('progressWrap').classList.remove('show');
+  document.getElementById('infoBox').classList.remove('show');
 }
 
-// ── Process ──
-document.getElementById('processBtn').onclick = async () => {
-  if (!selectedFile) return;
-  await shuffleVideo(selectedFile);
+document.getElementById('processBtn').onclick = () => {
+  if (!isProcessing && selectedFile) shuffleVideo(selectedFile);
 };
 
+/* ═══════════════════════════════════════════
+   UI HELPERS
+═══════════════════════════════════════════ */
 function setProgress(pct, msg) {
-  document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('pctLabel').textContent = pct + '%';
-  if (msg) document.getElementById('statusText').textContent = msg;
+  document.getElementById('progressFill').style.width = Math.min(100, Math.round(pct)) + '%';
+  document.getElementById('pctLabel').textContent = Math.min(100, Math.round(pct)) + '%';
+  if (msg !== undefined) document.getElementById('statusText').textContent = msg;
+}
+
+function showInfo(msg, isError = false) {
+  const el = document.getElementById('infoBox');
+  el.textContent = msg;
+  el.classList.add('show');
+  el.classList.toggle('error', isError);
 }
 
 function resetUI() {
   selectedFile = null;
+  isProcessing = false;
   fileInput.value = '';
   document.getElementById('fileChosen').textContent = '';
   document.getElementById('processBtn').disabled = true;
   document.getElementById('progressWrap').classList.remove('show');
   document.getElementById('downloadBtn').classList.remove('show');
+  document.getElementById('infoBox').classList.remove('show');
+  document.getElementById('backBtn').classList.remove('disabled');
   setProgress(0, '');
 }
 
-async function shuffleVideo(file) {
-  const processBtn = document.getElementById('processBtn');
-  const progressWrap = document.getElementById('progressWrap');
-  const downloadBtn = document.getElementById('downloadBtn');
+/* ═══════════════════════════════════════════
+   MAIN SHUFFLE ENGINE
 
-  processBtn.disabled = true;
-  progressWrap.classList.add('show');
-  downloadBtn.classList.remove('show');
+   Approach: real-time playback capture.
+   Each chunk is played at normal speed while
+   requestAnimationFrame paints frames to the
+   canvas. MediaRecorder records the canvas
+   stream continuously. This gives smooth,
+   native-quality output regardless of length.
+═══════════════════════════════════════════ */
+async function shuffleVideo(file) {
+  isProcessing = true;
+  document.getElementById('backBtn').classList.add('disabled');
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('downloadBtn').classList.remove('show');
+  document.getElementById('infoBox').classList.remove('show');
   setProgress(2, 'Loading video…');
 
+  const video  = document.getElementById('inputVideo');
+  const canvas = document.getElementById('scratchCanvas');
+  const ctx    = canvas.getContext('2d', { alpha: false });
+  let   outputURL = null;
+
   try {
-    // 1. Load video metadata
-    const video = document.getElementById('inputVideo');
-    const videoURL = URL.createObjectURL(file);
-    video.src = videoURL;
-    await new Promise((res, rej) => {
-      video.onloadedmetadata = res;
-      video.onerror = rej;
-    });
+    /* 1 ── Decode metadata */
+    const srcURL = URL.createObjectURL(file);
+    video.src = srcURL;
+    video.load();
+    await waitFor(video, 'loadedmetadata', 'error', 15000, 'Timed out loading video metadata.');
 
-    const duration = video.duration;
-    const W = video.videoWidth;
-    const H = video.videoHeight;
-    const CHUNK = 5; // seconds
-    const numChunks = Math.ceil(duration / CHUNK);
+    const duration  = video.duration;
+    const W         = video.videoWidth  || 1280;
+    const H         = video.videoHeight || 720;
+    const CHUNK     = 5;
+    const nChunks   = Math.ceil(duration / CHUNK);
 
-    setProgress(5, `Video: ${W}×${H}, ${duration.toFixed(1)}s → ${numChunks} chunks`);
+    setProgress(5, `${W}×${H} · ${duration.toFixed(1)}s · ${nChunks} chunks`);
+    showInfo(
+      `⏳ Processing plays the video in real time — about ${duration.toFixed(0)}s total. Keep this tab active for best results.`,
+      false
+    );
 
-    // 2. Set up canvas & recorder
-    const canvas = document.getElementById('scratchCanvas');
-    canvas.width = W;
+    /* 2 ── Canvas size */
+    canvas.width  = W;
     canvas.height = H;
-    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
 
-    // Pick best supported codec
-    const mimeTypes = [
+    /* 3 ── Codec & bitrate */
+    const candidates = [
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm;codecs=vp9',
       'video/webm;codecs=vp8',
       'video/webm',
-      'video/mp4'
     ];
-    let mimeType = mimeTypes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+    const mimeType = candidates.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+    const bps = Math.min(Math.max((file.size * 8) / duration, 800_000), 40_000_000);
 
-    // Estimate bitrate from file size (bits per second)
-    const estimatedBitrate = Math.round((file.size * 8) / duration);
-    const videoBitsPerSecond = Math.min(estimatedBitrate, 50_000_000); // cap at 50 Mbps
-
-    // 3. Shuffle chunk order
-    const order = Array.from({length: numChunks}, (_, i) => i);
+    /* 4 ── Shuffle order (Fisher-Yates) */
+    const order = Array.from({ length: nChunks }, (_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [order[i], order[j]] = [order[j], order[i]];
     }
 
-    setProgress(8, 'Starting recorder…');
+    /* 5 ── Start recorder */
+    const canvasStream = canvas.captureStream();
+    const recorder     = new MediaRecorder(canvasStream, {
+      mimeType,
+      videoBitsPerSecond: bps,
+    });
+    const recChunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) recChunks.push(e.data); };
+    recorder.start(200); // flush every 200 ms — essential for long videos
 
-    // 4. Record shuffled chunks one by one
-    const stream = canvas.captureStream(0); // 0 = manual frame push
-    const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond });
-    const chunks = [];
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.start();
-
-    const FPS = 30;
-    const frameDuration = 1 / FPS;
-
+    /* 6 ── Process each chunk */
     for (let ci = 0; ci < order.length; ci++) {
-      const chunkIdx = order[ci];
-      const start = chunkIdx * CHUNK;
-      const end = Math.min(start + CHUNK, duration);
-      const pct = Math.round(10 + (ci / order.length) * 82);
-      setProgress(pct, `Rendering chunk ${ci + 1} of ${order.length}…`);
+      const idx      = order[ci];
+      const t0       = idx * CHUNK;
+      const t1       = Math.min(t0 + CHUNK, duration);
+      const pBase    = 8 + (ci / order.length) * 83;
+      const pNext    = 8 + ((ci + 1) / order.length) * 83;
 
-      await renderChunk(video, canvas, ctx, stream, start, end, frameDuration);
+      setProgress(pBase, `Chunk ${ci + 1} / ${order.length}  —  seeking…`);
+      await seekTo(video, t0);
+
+      setProgress(pBase + 1, `Chunk ${ci + 1} / ${order.length}  —  recording…`);
+      await playChunk(video, canvas, ctx, t0, t1, pBase, pNext);
     }
 
-    setProgress(93, 'Finalising…');
-    recorder.stop();
-    await new Promise(res => recorder.onstop = res);
+    /* 7 ── Finalise */
+    setProgress(92, 'Finalising…');
+    await new Promise(res => { recorder.onstop = res; recorder.stop(); });
 
-    setProgress(97, 'Packaging file…');
-    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
-    const blob = new Blob(chunks, {type: mimeType});
-    const outURL = URL.createObjectURL(blob);
+    const ext  = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const blob = new Blob(recChunks, { type: mimeType });
+    outputURL  = URL.createObjectURL(blob);
 
-    setProgress(100, 'Done! 🎉');
+    setProgress(100, `Done!  Output: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
+    document.getElementById('infoBox').classList.remove('show');
 
-    downloadBtn.classList.add('show');
-    downloadBtn.onclick = () => {
+    const dlBtn    = document.getElementById('downloadBtn');
+    const baseName = file.name.replace(/\.[^/.]+$/, '');
+    dlBtn.classList.add('show');
+    dlBtn.onclick = () => {
       const a = document.createElement('a');
-      a.href = outURL;
-      const baseName = file.name.replace(/\.[^/.]+$/, '');
+      a.href = outputURL;
       a.download = `${baseName}_shuffled.${ext}`;
       a.click();
     };
 
-    URL.revokeObjectURL(videoURL);
+    URL.revokeObjectURL(srcURL);
+    video.src = '';
+
   } catch (err) {
     console.error(err);
-    setProgress(0, '❌ Error: ' + err.message);
-    processBtn.disabled = false;
+    setProgress(0, '');
+    showInfo('❌ ' + (err.message || 'Unknown error. Please try again.'), true);
+    document.getElementById('processBtn').disabled = false;
+  } finally {
+    isProcessing = false;
+    document.getElementById('backBtn').classList.remove('disabled');
   }
 }
 
-// Renders video frames from [start, end) onto canvas, pushing frames at frameDuration intervals
-function renderChunk(video, canvas, ctx, stream, start, end, frameDuration) {
-  return new Promise((resolve, reject) => {
-    // Seek to start
-    video.currentTime = start;
-
-    const onSeeked = () => {
-      video.removeEventListener('seeked', onSeeked);
-      let t = video.currentTime;
-
-      function paintFrame() {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        stream.getVideoTracks()[0].requestFrame?.();
-      }
-
-      function step() {
-        if (t >= end - 0.001) { resolve(); return; }
-        paintFrame();
-        t += frameDuration;
-        video.currentTime = Math.min(t, end - 0.001);
-        video.addEventListener('seeked', nextFrame, { once: true });
-      }
-
-      function nextFrame() { step(); }
-
-      step();
-    };
-
+/* ─────────────────────────────────────────────
+   Seek video to exact time, waiting for seeked
+───────────────────────────────────────────── */
+function seekTo(video, time) {
+  return new Promise((res, rej) => {
+    if (Math.abs(video.currentTime - time) < 0.08) { res(); return; }
+    const tid = setTimeout(() => { cleanup(); res(); }, 5000); // timeout fallback
+    function onSeeked() { cleanup(); res(); }
+    function onErr()    { cleanup(); rej(new Error('Seek error at ' + time.toFixed(2) + 's')); }
+    function cleanup()  { clearTimeout(tid); video.removeEventListener('seeked', onSeeked); video.removeEventListener('error', onErr); }
     video.addEventListener('seeked', onSeeked, { once: true });
-    video.onerror = reject;
+    video.addEventListener('error',  onErr,    { once: true });
+    video.currentTime = time;
+  });
+}
+
+/* ─────────────────────────────────────────────
+   Play video from t0→t1, painting every rAF
+   onto the canvas for smooth recording.
+───────────────────────────────────────────── */
+function playChunk(video, canvas, ctx, t0, t1, pStart, pEnd) {
+  return new Promise((res, rej) => {
+    let rafId   = null;
+    let settled = false;
+
+    function finish() {
+      if (settled) return;
+      settled = true;
+      video.pause();
+      if (rafId) cancelAnimationFrame(rafId);
+      video.removeEventListener('ended',      onEnd);
+      video.removeEventListener('error',      onEnd);
+      video.removeEventListener('timeupdate', onTime);
+      // Render one final frame
+      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
+      res();
+    }
+
+    function onEnd()  { finish(); }
+    function onTime() { if (video.currentTime >= t1 - 0.05) finish(); }
+
+    function paint() {
+      if (settled) return;
+      const t = video.currentTime;
+      if (t >= t1 - 0.04) { finish(); return; }
+      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
+      const frac = Math.min(1, (t - t0) / Math.max(0.001, t1 - t0));
+      setProgress(pStart + frac * (pEnd - pStart));
+      rafId = requestAnimationFrame(paint);
+    }
+
+    video.addEventListener('ended',      onEnd,  { once: true });
+    video.addEventListener('error',      onEnd,  { once: true });
+    video.addEventListener('timeupdate', onTime);
+
+    // Safety: if chunk takes >4× real-time, move on
+    const timeout = setTimeout(() => {
+      if (!settled) { console.warn('Chunk timeout — moving on'); finish(); }
+    }, (t1 - t0) * 4000 + 4000);
+
+    video.playbackRate = 1.0;
+    video.play().then(() => {
+      rafId = requestAnimationFrame(paint);
+    }).catch(err => {
+      clearTimeout(timeout);
+      rej(new Error('Playback failed: ' + err.message));
+    });
+  });
+}
+
+/* ─────────────────────────────────────────────
+   Wait for an event on an element (with timeout)
+───────────────────────────────────────────── */
+function waitFor(el, resolveEvent, rejectEvent, ms, timeoutMsg) {
+  return new Promise((res, rej) => {
+    const tid = setTimeout(() => { cleanup(); rej(new Error(timeoutMsg)); }, ms);
+    function onRes() { cleanup(); res(); }
+    function onRej() { cleanup(); rej(new Error('Event: ' + rejectEvent)); }
+    function cleanup() {
+      clearTimeout(tid);
+      el.removeEventListener(resolveEvent, onRes);
+      el.removeEventListener(rejectEvent,  onRej);
+    }
+    el.addEventListener(resolveEvent, onRes, { once: true });
+    el.addEventListener(rejectEvent,  onRej, { once: true });
   });
 }
 </script>

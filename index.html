@@ -1,20 +1,396 @@
 <!DOCTYPE html>
-<html lang="en">  
-<head>    
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Page</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VidShuffle</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --orange: #FF6B35; --pink: #FF3CAC; }
+  body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow: hidden; }
+
+  .watermark { position:fixed; top:22px; right:28px; z-index:1000; display:flex; align-items:baseline; gap:5px; pointer-events:none; user-select:none; }
+  .watermark-made { font-family:'Inter',sans-serif; font-weight:400; font-size:13px; color:rgba(255,255,255,0.85); letter-spacing:0.04em; text-shadow:0 1px 8px rgba(0,0,0,0.25); }
+  .watermark-sammy { font-family:'Bebas Neue',sans-serif; font-size:20px; color:#fff; letter-spacing:0.06em; text-shadow:0 2px 12px rgba(0,0,0,0.3); }
+
+  .page { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.65s cubic-bezier(.4,0,.2,1), transform 0.65s cubic-bezier(.4,0,.2,1); }
+  .page.hidden { opacity:0; pointer-events:none; transform:scale(1.04); }
+
+  #landing { background:linear-gradient(135deg,#FF6B35 0%,#FF3CAC 55%,#FF6B35 100%); background-size:300% 300%; animation:gradShift 7s ease infinite; }
+  @keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+  .shapes { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .shape { position:absolute; border-radius:50%; opacity:0.12; animation:floatS linear infinite; }
+  .shape:nth-child(1){width:340px;height:340px;background:#fff;top:-80px;left:-80px;animation-duration:18s}
+  .shape:nth-child(2){width:200px;height:200px;background:#FFD700;bottom:-40px;right:10%;animation-duration:14s;animation-delay:-4s}
+  .shape:nth-child(3){width:130px;height:130px;background:#fff;top:40%;left:10%;animation-duration:22s;animation-delay:-9s}
+  .shape:nth-child(4){width:260px;height:260px;background:#FF4500;bottom:15%;left:-60px;animation-duration:16s;animation-delay:-2s}
+  .shape:nth-child(5){width:90px;height:90px;background:#fff;top:15%;right:15%;animation-duration:12s;animation-delay:-6s}
+  @keyframes floatS { 0%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-30px) rotate(180deg)} 100%{transform:translateY(0) rotate(360deg)} }
+
+  .landing-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(56px,10vw,100px); color:#fff; letter-spacing:0.08em; text-align:center; line-height:1; text-shadow:0 4px 30px rgba(0,0,0,0.2); position:relative; z-index:1; margin-bottom:12px; }
+  .landing-sub { font-size:15px; color:rgba(255,255,255,0.82); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:60px; position:relative; z-index:1; }
+
+  .btn-shuffle { position:relative; z-index:1; background:#fff; border:none; border-radius:100px; padding:20px 52px; cursor:pointer; display:flex; align-items:center; gap:14px; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:0.1em; color:var(--orange); box-shadow:0 8px 40px rgba(0,0,0,0.18); transition:transform 0.18s,box-shadow 0.18s; }
+  .btn-shuffle:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 16px 50px rgba(0,0,0,0.22); }
+  .btn-shuffle:active { transform:scale(0.98); }
+  .shuffle-icon { width:26px; height:26px; flex-shrink:0; }
+
+  #upload-page { background:linear-gradient(160deg,#FF6B35 0%,#FF3CAC 100%); }
+
+  .back-btn { position:absolute; top:24px; left:28px; z-index:10; background:rgba(255,255,255,0.18); border:1.5px solid rgba(255,255,255,0.4); border-radius:100px; padding:9px 20px 9px 14px; cursor:pointer; display:flex; align-items:center; gap:6px; color:#fff; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.04em; backdrop-filter:blur(10px); transition:background 0.15s,transform 0.15s; }
+  .back-btn:hover { background:rgba(255,255,255,0.3); transform:translateX(-2px); }
+  .back-btn.locked { opacity:0.35; cursor:not-allowed; pointer-events:none; }
+
+  .upload-card { background:rgba(255,255,255,0.97); border-radius:28px; padding:44px 44px 36px; width:min(92vw,520px); box-shadow:0 20px 80px rgba(0,0,0,0.22); position:relative; z-index:1; max-height:92vh; overflow-y:auto; }
+  .card-title { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:0.07em; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px; }
+  .card-sub { font-size:13px; color:#888; margin-bottom:28px; line-height:1.5; }
+
+  .drop-zone { border:2.5px dashed #FFBCA0; border-radius:18px; background:#FFF5F0; padding:36px 20px; text-align:center; cursor:pointer; transition:border-color 0.2s,background 0.2s; position:relative; overflow:hidden; }
+  .drop-zone:hover,.drop-zone.drag-over { border-color:var(--orange); background:#FFE8DF; }
+  .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+  .drop-icon { width:50px; height:50px; margin:0 auto 12px; display:block; }
+  .drop-title { font-size:15px; font-weight:600; color:#333; margin-bottom:4px; }
+  .drop-hint { font-size:12px; color:#bbb; }
+  .file-chosen { font-size:12px; color:var(--orange); font-weight:500; margin-top:8px; word-break:break-all; }
+
+  .btn-process { width:100%; margin-top:20px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--orange),var(--pink)); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:0.1em; cursor:pointer; box-shadow:0 6px 24px rgba(255,60,172,0.3); transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s; }
+  .btn-process:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 10px 30px rgba(255,60,172,0.38); }
+  .btn-process:disabled { opacity:0.4; cursor:not-allowed; }
+
+  .progress-wrap { margin-top:22px; display:none; }
+  .progress-wrap.show { display:block; }
+  .progress-label { font-size:12px; color:#777; margin-bottom:7px; display:flex; justify-content:space-between; }
+  .progress-bar-track { height:8px; background:#F0E0DA; border-radius:100px; overflow:hidden; }
+  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--orange),var(--pink)); border-radius:100px; width:0%; transition:width 0.3s ease; }
+  .status-text { font-size:12px; color:#999; margin-top:8px; min-height:18px; }
+
+  .info-box { margin-top:12px; padding:11px 15px; border-radius:12px; background:#FFF8F0; border:1px solid #FFD0B0; font-size:12px; color:#a05020; line-height:1.6; display:none; }
+  .info-box.show { display:block; }
+  .info-box.err { background:#FFF0F0; border-color:#FFAAAA; color:#c02020; }
+
+  .btn-download { display:none; width:100%; margin-top:18px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:0.1em; cursor:pointer; box-shadow:0 6px 24px rgba(34,197,94,0.3); transition:transform 0.15s,box-shadow 0.15s; align-items:center; justify-content:center; gap:10px; }
+  .btn-download.show { display:flex; }
+  .btn-download:hover { transform:translateY(-2px); box-shadow:0 10px 28px rgba(34,197,94,0.38); }
+</style>
 </head>
 <body>
-    <h1>Upload your video</h1>
-    <!-- Your upload form goes here -->
 
-    <button onclick="goBack()" style="position: fixed; bottom: 20px; left: 20px;">Back</button>
+<div class="watermark">
+  <span class="watermark-made">made by</span>
+  <span class="watermark-sammy">SAMMY</span>
+</div>
 
-    <script>
-        function goBack() {
-            window.history.back();
-        }
-    </script>
+<!-- LANDING -->
+<div class="page" id="landing">
+  <div class="shapes">
+    <div class="shape"></div><div class="shape"></div><div class="shape"></div>
+    <div class="shape"></div><div class="shape"></div>
+  </div>
+  <div class="landing-title">VidShuffle</div>
+  <div class="landing-sub">Remix your video in seconds</div>
+  <button class="btn-shuffle" id="goToUpload">
+    <svg class="shuffle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+      <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+    </svg>
+    Shuffle My Video
+  </button>
+</div>
+
+<!-- UPLOAD PAGE -->
+<div class="page hidden" id="upload-page">
+  <button class="back-btn" id="backBtn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    Back
+  </button>
+  <div class="upload-card">
+    <div class="card-title">Upload Video</div>
+    <div class="card-sub">Splits into 5-second chunks, shuffles randomly, exports a clean MP4.</div>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept="video/*">
+      <svg class="drop-icon" viewBox="0 0 52 52" fill="none">
+        <circle cx="26" cy="26" r="25" fill="#FFE8DF"/>
+        <path d="M26 34V20M20 26l6-6 6 6" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <div class="drop-title">Drop your video here</div>
+      <div class="drop-hint">or click to browse · MP4, MOV, WebM…</div>
+      <div class="file-chosen" id="fileChosen"></div>
+    </div>
+
+    <button class="btn-process" id="processBtn" disabled>SHUFFLE IT →</button>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-label"><span>Processing</span><span id="pctLabel">0%</span></div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="status-text" id="statusText"></div>
+    </div>
+
+    <div class="info-box" id="infoBox"></div>
+
+    <button class="btn-download" id="downloadBtn">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download Shuffled MP4
+    </button>
+  </div>
+</div>
+
+<!-- Load FFmpeg via ESM — the only reliable way in a plain HTML file -->
+<script type="module">
+import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+
+/* ── expose to global scope so non-module handlers can reach them ── */
+window._FFmpeg    = FFmpeg;
+window._fetchFile = fetchFile;
+window._toBlobURL = toBlobURL;
+
+let ff = null;
+
+async function initFFmpeg() {
+  ff = new FFmpeg();
+
+  ff.on('log', ({ message }) => {
+    console.log('[ffmpeg]', message);
+    // parse progress hint from stderr
+    const m = message.match(/Opening|segment|concat|mux/i);
+    if (m) updateStatusHint(message);
+  });
+
+  ff.on('progress', ({ progress, time }) => {
+    if (progress && isFinite(progress)) {
+      setP(50 + Math.round(progress * 40), 'Encoding…');
+    }
+  });
+
+  setP(3, 'Loading FFmpeg engine (first time only)…');
+  showInfo('⏳ Downloading FFmpeg engine (~31 MB). This is cached after the first load.');
+
+  /* Load core + wasm from unpkg */
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+  await ff.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`,   'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+  });
+
+  hideInfo();
+  setP(8, 'FFmpeg ready ✓');
+  window._ff = ff;
+  window._ffReady = true;
+  document.getElementById('processBtn').disabled = !window._selectedFile;
+}
+
+// Kick off load immediately
+initFFmpeg().catch(err => {
+  console.error('FFmpeg init failed:', err);
+  showInfo('❌ Failed to load FFmpeg: ' + err.message + '. Check your internet connection and reload.', true);
+});
+
+/* ── Main shuffle pipeline ── */
+window._runShuffle = async function(file) {
+  if (!window._ffReady) { showInfo('FFmpeg is still loading, please wait…'); return; }
+  const ff = window._ff;
+
+  try {
+    setP(10, 'Writing video to memory…');
+    const ext       = (file.name.match(/\.[^/.]+$/) || ['.mp4'])[0].toLowerCase();
+    const inputName = 'input' + ext;
+    await ff.writeFile(inputName, await fetchFile(file));
+
+    /* Probe duration via HTML5 video element */
+    setP(14, 'Analysing…');
+    const duration = await probeDuration(file);
+    const CHUNK    = 5;
+    const nChunks  = Math.ceil(duration / CHUNK);
+    setP(16, `${duration.toFixed(1)}s · ${nChunks} chunks`);
+
+    /* ── SPLIT into segments (codec copy, no re-encode) ── */
+    setP(18, 'Splitting into 5s chunks…');
+    await ff.exec([
+      '-i', inputName,
+      '-c', 'copy',
+      '-f', 'segment',
+      '-segment_time', '5',
+      '-reset_timestamps', '1',
+      '-avoid_negative_ts', 'make_zero',
+      '-segment_format', 'mp4',
+      'seg%03d.mp4'
+    ]);
+
+    /* ── Collect segment names ── */
+    const dir  = await ff.listDir('/');
+    const segs = dir.map(f => f.name).filter(n => /^seg\d+\.mp4$/.test(n)).sort();
+    if (!segs.length) throw new Error('Segmentation failed — try converting your video to MP4 first.');
+
+    setP(45, `Got ${segs.length} segments — shuffling…`);
+
+    /* ── Fisher-Yates shuffle ── */
+    const shuffled = [...segs];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    /* ── Write concat list ── */
+    const list = shuffled.map(s => `file '${s}'`).join('\n');
+    await ff.writeFile('list.txt', list);
+    setP(50, 'Concatenating…');
+
+    /* ── Concat → output MP4 with proper timestamps ── */
+    await ff.exec([
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', 'list.txt',
+      '-c', 'copy',
+      '-movflags', '+faststart',
+      'output.mp4'
+    ]);
+
+    setP(90, 'Reading output…');
+    const data = await ff.readFile('output.mp4');
+    if (!data || data.byteLength < 1000) throw new Error('Output is empty. The source video codec may be unsupported (try H.264 MP4).');
+
+    const blob = new Blob([data.buffer], { type: 'video/mp4' });
+    const url  = URL.createObjectURL(blob);
+    setP(100, `Done! · ${(blob.size/1024/1024).toFixed(1)} MB`);
+
+    /* ── Clean up virtual FS ── */
+    for (const s of segs) { try { await ff.deleteFile(s); } catch(_){} }
+    try { await ff.deleteFile('list.txt'); } catch(_){}
+    try { await ff.deleteFile(inputName); } catch(_){}
+    try { await ff.deleteFile('output.mp4'); } catch(_){}
+
+    /* ── Show download button ── */
+    const dlBtn  = document.getElementById('downloadBtn');
+    const base   = file.name.replace(/\.[^/.]+$/, '');
+    dlBtn.classList.add('show');
+    dlBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url; a.download = base + '_shuffled.mp4'; a.click();
+    };
+
+  } catch(err) {
+    console.error(err);
+    setP(0, '');
+    showInfo('❌ ' + err.message, true);
+    document.getElementById('processBtn').disabled = false;
+  } finally {
+    window._processing = false;
+    document.getElementById('backBtn').classList.remove('locked');
+  }
+};
+
+/* ── Probe video duration using HTML5 element ── */
+function probeDuration(file) {
+  return new Promise((res) => {
+    const url = URL.createObjectURL(file);
+    const v   = document.createElement('video');
+    v.preload = 'metadata';
+    const done = (dur) => { URL.revokeObjectURL(url); v.src=''; res(dur); };
+    const t = setTimeout(() => done(60), 8000);
+    v.onloadedmetadata = () => { clearTimeout(t); done(isFinite(v.duration) && v.duration > 0 ? v.duration : 60); };
+    v.onerror          = () => { clearTimeout(t); done(60); };
+    v.src = url;
+  });
+}
+
+function updateStatusHint(msg) {
+  const el = document.getElementById('statusText');
+  if (el && msg) el.textContent = msg.slice(0, 80);
+}
+</script>
+
+<script>
+/* ── Non-module glue code ── */
+
+window._selectedFile = null;
+window._processing   = false;
+window._ffReady      = false;
+
+/* Navigation */
+document.getElementById('goToUpload').onclick = () => {
+  document.getElementById('landing').classList.add('hidden');
+  document.getElementById('upload-page').classList.remove('hidden');
+};
+document.getElementById('backBtn').onclick = () => {
+  if (window._processing) return;
+  document.getElementById('upload-page').classList.add('hidden');
+  document.getElementById('landing').classList.remove('hidden');
+  resetUI();
+};
+
+/* File pick */
+const dropZone  = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('video/')) handleFile(f);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+
+function handleFile(f) {
+  window._selectedFile = f;
+  document.getElementById('fileChosen').textContent = `✓  ${f.name}  (${(f.size/1024/1024).toFixed(1)} MB)`;
+  // only enable if FFmpeg is ready
+  document.getElementById('processBtn').disabled = !window._ffReady;
+  document.getElementById('downloadBtn').classList.remove('show');
+  document.getElementById('progressWrap').classList.remove('show');
+  hideInfo();
+}
+
+document.getElementById('processBtn').onclick = () => {
+  if (window._processing || !window._selectedFile || !window._ffReady) return;
+  window._processing = true;
+  document.getElementById('backBtn').classList.add('locked');
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('progressWrap').classList.add('show');
+  document.getElementById('downloadBtn').classList.remove('show');
+  hideInfo();
+  window._runShuffle(window._selectedFile);
+};
+
+/* UI helpers */
+function setP(pct, msg) {
+  const p = Math.min(100, Math.round(pct));
+  document.getElementById('progressFill').style.width = p + '%';
+  document.getElementById('pctLabel').textContent = p + '%';
+  if (msg !== undefined) document.getElementById('statusText').textContent = msg;
+}
+function showInfo(msg, isErr) {
+  const el = document.getElementById('infoBox');
+  el.textContent = msg;
+  el.className = 'info-box show' + (isErr ? ' err' : '');
+}
+function hideInfo() {
+  document.getElementById('infoBox').classList.remove('show');
+}
+function resetUI() {
+  window._selectedFile = null;
+  window._processing   = false;
+  fileInput.value = '';
+  document.getElementById('fileChosen').textContent = '';
+  document.getElementById('processBtn').disabled = true;
+  document.getElementById('progressWrap').classList.remove('show');
+  document.getElementById('downloadBtn').classList.remove('show');
+  document.getElementById('backBtn').classList.remove('locked');
+  hideInfo();
+  setP(0, '');
+}
+
+/* Make helpers global so the module script can call them */
+window.setP     = setP;
+window.showInfo = showInfo;
+window.hideInfo = hideInfo;
+</script>
 </body>
 </html>

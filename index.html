@@ -1,432 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VidShuffle</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root { --orange: #FF6B35; --pink: #FF3CAC; }
-  body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow: hidden; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Shuffler</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(135deg, #ff9a44 0%, #fc6076 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
 
-  .watermark { position:fixed; top:22px; right:28px; z-index:1000; display:flex; align-items:baseline; gap:5px; pointer-events:none; user-select:none; }
-  .watermark-made { font-family:'Inter',sans-serif; font-weight:400; font-size:13px; color:rgba(255,255,255,0.85); letter-spacing:0.04em; text-shadow:0 1px 8px rgba(0,0,0,0.25); }
-  .watermark-sammy { font-family:'Bebas Neue',sans-serif; font-size:20px; color:#fff; letter-spacing:0.06em; text-shadow:0 2px 12px rgba(0,0,0,0.3); }
+        .branding {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            text-align: right;
+            pointer-events: none;
+        }
+        .made-by { font-family: 'Inter', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
+        .sammy { font-family: 'Bebas Neue', sans-serif; font-size: 28px; display: block; line-height: 1; }
 
-  .page { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; transition:opacity 0.65s cubic-bezier(.4,0,.2,1),transform 0.65s cubic-bezier(.4,0,.2,1); }
-  .page.hidden { opacity:0; pointer-events:none; transform:scale(1.04); }
+        .container { text-align: center; width: 100%; max-width: 500px; padding: 20px; }
 
-  #landing { background:linear-gradient(135deg,#FF6B35 0%,#FF3CAC 55%,#FF6B35 100%); background-size:300% 300%; animation:gradShift 7s ease infinite; }
-  @keyframes gradShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+        button {
+            background: white;
+            color: #fc6076;
+            border: none;
+            padding: 15px 40px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0,0,0,0.2); }
+        
+        .page { display: none; flex-direction: column; align-items: center; width: 100%; }
+        .page.active { display: flex; }
 
-  .shapes { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
-  .shape { position:absolute; border-radius:50%; opacity:0.12; animation:floatS linear infinite; }
-  .shape:nth-child(1){width:340px;height:340px;background:#fff;top:-80px;left:-80px;animation-duration:18s}
-  .shape:nth-child(2){width:200px;height:200px;background:#FFD700;bottom:-40px;right:10%;animation-duration:14s;animation-delay:-4s}
-  .shape:nth-child(3){width:130px;height:130px;background:#fff;top:40%;left:10%;animation-duration:22s;animation-delay:-9s}
-  .shape:nth-child(4){width:260px;height:260px;background:#FF4500;bottom:15%;left:-60px;animation-duration:16s;animation-delay:-2s}
-  .shape:nth-child(5){width:90px;height:90px;background:#fff;top:15%;right:15%;animation-duration:12s;animation-delay:-6s}
-  @keyframes floatS { 0%{transform:translateY(0) rotate(0deg)} 50%{transform:translateY(-30px) rotate(180deg)} 100%{transform:translateY(0) rotate(360deg)} }
+        .upload-box {
+            border: 2px dashed rgba(255,255,255,0.7);
+            padding: 40px;
+            border-radius: 20px;
+            cursor: pointer;
+            width: 80%;
+            margin-top: 20px;
+            transition: background 0.3s;
+        }
+        .upload-box:hover { background: rgba(255,255,255,0.1); }
+        input[type="file"] { display: none; }
 
-  .landing-title { font-family:'Bebas Neue',sans-serif; font-size:clamp(56px,10vw,100px); color:#fff; letter-spacing:0.08em; text-align:center; line-height:1; text-shadow:0 4px 30px rgba(0,0,0,0.2); position:relative; z-index:1; }
-  .landing-sub { font-size:15px; color:rgba(255,255,255,0.82); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:60px; position:relative; z-index:1; }
-  .btn-shuffle { position:relative; z-index:1; background:#fff; border:none; border-radius:100px; padding:20px 52px; cursor:pointer; display:flex; align-items:center; gap:14px; font-family:'Bebas Neue',sans-serif; font-size:16px; font-weight:600; color:#FF6B35; letter-spacing:0.04em; box-shadow:0 8px 32px rgba(0,0,0,0.15); transition:all 0.3s ease; }
-  .btn-shuffle:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 16px 50px rgba(0,0,0,0.22); }
-  .btn-shuffle:active { transform:scale(0.98); }
-  .shuffle-icon { width:26px; height:26px; flex-shrink:0; }
+        /* PROGRESS BAR STYLES */
+        .progress-container {
+            width: 80%;
+            height: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none; /* Hidden until processing starts */
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        #progressBar {
+            width: 0%;
+            height: 100%;
+            background: white;
+            transition: width 0.3s ease;
+        }
 
-  #upload-page { background:linear-gradient(160deg,#FF6B35 0%,#FF3CAC 100%); }
-  .back-btn { position:absolute; top:24px; left:28px; z-index:10; background:rgba(255,255,255,0.18); border:1.5px solid rgba(255,255,255,0.4); border-radius:100px; padding:9px 20px 9px 14px; cursor:pointer; display:flex; align-items:center; gap:8px; font-family:'Inter',sans-serif; font-size:13px; color:#fff; letter-spacing:0.03em; transition:all 0.2s ease; }
-  .back-btn:hover { background:rgba(255,255,255,0.3); transform:translateX(-2px); }
-  .back-btn.locked { opacity:0.35; cursor:not-allowed; pointer-events:none; }
-
-  .upload-card { background:rgba(255,255,255,0.97); border-radius:28px; padding:44px 44px 36px; width:min(92vw,520px); box-shadow:0 20px 80px rgba(0,0,0,0.22); position:relative; z-index:1; max-height:85vh; overflow-y:auto; }
-  .card-title { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:0.07em; background:linear-gradient(135deg,var(--orange),var(--pink)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:8px; }
-  .card-sub { font-size:13px; color:#888; margin-bottom:28px; line-height:1.5; }
-
-  .drop-zone { border:2.5px dashed #FFBCA0; border-radius:18px; background:#FFF5F0; padding:36px 20px; text-align:center; cursor:pointer; transition:border-color 0.2s,background 0.2s; position:relative; }
-  .drop-zone:hover,.drop-zone.drag-over { border-color:var(--orange); background:#FFE8DF; }
-  .drop-zone input[type="file"] { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-  .drop-icon { width:50px; height:50px; margin:0 auto 12px; display:block; }
-  .drop-title { font-size:15px; font-weight:600; color:#333; margin-bottom:4px; }
-  .drop-hint { font-size:12px; color:#bbb; }
-  .file-chosen { font-size:12px; color:var(--orange); font-weight:500; margin-top:8px; word-break:break-all; }
-
-  .btn-process { width:100%; margin-top:20px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,var(--orange),var(--pink)); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.05em; cursor:pointer; transition:all 0.2s ease; }
-  .btn-process:hover:not(:disabled) { transform:translateY(-2px); }
-  .btn-process:disabled { opacity:0.4; cursor:not-allowed; }
-
-  .progress-wrap { margin-top:22px; display:none; }
-  .progress-wrap.show { display:block; }
-  .progress-label { font-size:12px; color:#777; margin-bottom:7px; display:flex; justify-content:space-between; }
-  .progress-bar-track { height:8px; background:#F0E0DA; border-radius:100px; overflow:hidden; }
-  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--orange),var(--pink)); border-radius:100px; width:0%; transition:width 0.4s ease; }
-  .status-text { font-size:12px; color:#999; margin-top:8px; min-height:18px; }
-
-  .info-box { margin-top:12px; padding:11px 15px; border-radius:12px; background:#FFF8F0; border:1px solid #FFD0B0; font-size:12px; color:#a05020; line-height:1.6; display:none; }
-  .info-box.show { display:block; }
-  .info-box.err { background:#FFF0F0; border-color:#FFAAAA; color:#c02020; }
-
-  .btn-download { display:none; width:100%; margin-top:18px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:15px; letter-spacing:0.05em; cursor:pointer; justify-content:center; align-items:center; gap:10px; transition:all 0.2s ease; }
-  .btn-download.show { display:flex; }
-  .btn-download:hover { transform:translateY(-2px); }
-</style>
+        #status { font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+    </style>
 </head>
 <body>
 
-<div class="watermark">
-  <span class="watermark-made">made by</span>
-  <span class="watermark-sammy">SAMMY</span>
-</div>
-
-<!-- LANDING -->
-<div class="page" id="landing">
-  <div class="shapes">
-    <div class="shape"></div><div class="shape"></div><div class="shape"></div>
-    <div class="shape"></div><div class="shape"></div>
-  </div>
-  <div class="landing-title">VidShuffle</div>
-  <div class="landing-sub">Remix your video in seconds</div>
-  <button class="btn-shuffle" id="goToUpload">
-    <svg class="shuffle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
-      <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
-    </svg>
-    Shuffle My Video
-  </button>
-</div>
-
-<!-- UPLOAD PAGE -->
-<div class="page hidden" id="upload-page">
-  <button class="back-btn" id="backBtn">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    Back
-  </button>
-  <div class="upload-card">
-    <div class="card-title">Upload Video</div>
-    <div class="card-sub">Splits into 3-second chunks, shuffles randomly, exports a clean MP4.</div>
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept="video/mp4,video/*">
-      <svg class="drop-icon" viewBox="0 0 52 52" fill="none">
-        <circle cx="26" cy="26" r="25" fill="#FFE8DF"/>
-        <path d="M26 34V20M20 26l6-6 6 6" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      <div class="drop-title">Drop your video here</div>
-      <div class="drop-hint">or click to browse · MP4 recommended</div>
-      <div class="file-chosen" id="fileChosen"></div>
+    <div class="branding">
+        <span class="made-by">Made by</span>
+        <span class="sammy">SAMMY</span>
     </div>
 
-    <button class="btn-process" id="processBtn" disabled>SHUFFLE IT →</button>
-
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label"><span>Processing</span><span id="pctLabel">0%</span></div>
-      <div class="progress-bar-track"><div class="progress-bar-fill" id="progressFill"></div></div>
-      <div class="status-text" id="statusText"></div>
+    <!-- Page 1 -->
+    <div id="page1" class="page active">
+        <button onclick="goToPage(2)">Shuffle Video</button>
     </div>
 
-    <div class="info-box" id="infoBox"></div>
+    <!-- Page 2 -->
+    <div id="page2" class="page">
+        <h2 style="font-family: 'Bebas Neue'; font-size: 40px; letter-spacing: 1px;">Upload Video</h2>
+        
+        <label class="upload-box" id="dropZone" for="videoInput">
+            <span>Click to select Video</span>
+        </label>
+        <input type="file" id="videoInput" accept="video/*">
+        
+        <div id="processingArea" style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
+            <div id="status">Ready...</div>
+            <div class="progress-container" id="pContainer">
+                <div id="progressBar"></div>
+            </div>
+        </div>
 
-    <button class="btn-download" id="downloadBtn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Download Shuffled MP4
-    </button>
-  </div>
-</div>
+        <button id="downloadBtn" style="display: none;">Download Result</button>
+    </div>
 
-<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.umd.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    
+    <script>
+        const { FFmpeg } = FFmpegWasm;
+        const { fetchFile, toBlobURL } = FFmpegUtil;
+        let ffmpeg = null;
 
-<script>
-let selectedFile = null;
-let processing = false;
+        function goToPage(pageNum) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page${pageNum}`).classList.add('active');
+        }
 
-const $ = id => document.getElementById(id);
+        const videoInput = document.getElementById('videoInput');
+        const status = document.getElementById('status');
+        const progressBar = document.getElementById('progressBar');
+        const pContainer = document.getElementById('pContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const dropZone = document.getElementById('dropZone');
 
-function setP(pct, msg) {
-  const p = Math.min(100, Math.round(pct));
-  $('progressFill').style.width = p + '%';
-  $('pctLabel').textContent = p + '%';
-  if (msg !== undefined) $('statusText').textContent = msg;
-}
+        videoInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-function showInfo(msg, isErr) {
-  const el = $('infoBox');
-  el.textContent = msg;
-  el.className = 'info-box show' + (isErr ? ' err' : '');
-}
+            // Hide upload UI, show Progress UI
+            dropZone.style.display = 'none';
+            pContainer.style.display = 'block';
+            status.innerText = "Loading Engine...";
 
-function hideInfo() { $('infoBox').classList.remove('show'); }
-function tick() { return new Promise(r => setTimeout(r, 0)); }
+            if (!ffmpeg) {
+                ffmpeg = new FFmpeg();
+                
+                // Track Progress
+                ffmpeg.on('progress', ({ progress }) => {
+                    // progress is a value between 0 and 1
+                    const percent = Math.round(progress * 100);
+                    progressBar.style.width = percent + '%';
+                });
 
-function fail(err) {
-  let msg = 'Unknown error';
-  if (err) {
-    if (typeof err === 'string') msg = err;
-    else if (err.message) msg = err.message;
-    else { try { msg = JSON.stringify(err); } catch(_){} }
-  }
-  console.error('VidShuffle error:', err);
-  setP(0, '');
-  showInfo('❌ ' + msg, true);
-  $('processBtn').disabled = false;
-  $('backBtn').classList.remove('locked');
-  processing = false;
-}
+                await ffmpeg.load({
+                    coreURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js`, 'text/javascript'),
+                    wasmURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`, 'application/wasm'),
+                });
+            }
 
-function resetUI() {
-  selectedFile = null;
-  processing = false;
-  $('fileInput').value = '';
-  $('fileChosen').textContent = '';
-  $('processBtn').disabled = true;
-  $('progressWrap').classList.remove('show');
-  $('downloadBtn').classList.remove('show');
-  $('backBtn').classList.remove('locked');
-  hideInfo();
-  setP(0, '');
-}
+            // Start Processing
+            status.innerText = "Step 1/2: Splitting into 5s parts...";
+            await ffmpeg.writeFile('input_video', await fetchFile(file));
 
-$('goToUpload').onclick = () => {
-  $('landing').classList.add('hidden');
-  $('upload-page').classList.remove('hidden');
-};
+            // Execute Split
+            await ffmpeg.exec([
+                '-i', 'input_video', 
+                '-f', 'segment', 
+                '-segment_time', '5', 
+                '-c', 'copy', 
+                '-reset_timestamps', '1',
+                'out%d.mp4'
+            ]);
 
-$('backBtn').onclick = () => {
-  if (processing) return;
-  $('upload-page').classList.add('hidden');
-  $('landing').classList.remove('hidden');
-  resetUI();
-};
+            // Reset bar for next step
+            progressBar.style.width = '0%';
+            status.innerText = "Step 2/2: Shuffling and Re-joining...";
 
-const dropZone = $('dropZone');
-const fileInput = $('fileInput');
+            const files = await ffmpeg.listDir('.');
+            let segments = files
+                .filter(f => f.name.startsWith('out') && f.name.endsWith('.mp4'))
+                .map(f => f.name);
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) handleFile(f);
-});
+            // Fisher-Yates Shuffle
+            for (let i = segments.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [segments[i], segments[j]] = [segments[j], segments[i]];
+            }
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) handleFile(fileInput.files[0]);
-});
+            const concatContent = segments.map(s => `file '${s}'`).join('\n');
+            await ffmpeg.writeFile('list.txt', concatContent);
 
-function handleFile(f) {
-  selectedFile = f;
-  $('fileChosen').textContent = `✓  ${f.name}  (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
-  $('processBtn').disabled = false;
-  $('downloadBtn').classList.remove('show');
-  $('progressWrap').classList.remove('show');
-  hideInfo();
-}
+            // Execute Join
+            await ffmpeg.exec([
+                '-f', 'concat', 
+                '-safe', '0', 
+                '-i', 'list.txt', 
+                '-c', 'copy', 
+                'final.mp4'
+            ]);
 
-$('processBtn').onclick = () => {
-  if (processing || !selectedFile) return;
-  processing = true;
-  $('backBtn').classList.add('locked');
-  $('processBtn').disabled = true;
-  $('progressWrap').classList.add('show');
-  $('downloadBtn').classList.remove('show');
-  hideInfo();
-  runShuffle(selectedFile);
-};
-
-async function runShuffle(file) {
-  try {
-    setP(5, 'Reading file…');
-    const arrayBuf = await readAsArrayBuffer(file);
-    await tick();
-
-    setP(15, 'Parsing MP4…');
-    const probeInfo = await probeMP4(arrayBuf);
-    if (!probeInfo.videoTrack) throw new Error('No video track found. Please use an MP4 file.');
-
-    const vTrack = probeInfo.videoTrack;
-    const fps = vTrack.nb_samples / (vTrack.duration / vTrack.timescale);
-    const nbPerSeg = Math.max(1, Math.round(fps * 3));
-
-    setP(25, `${vTrack.nb_samples} frames at ~${fps.toFixed(1)}fps → ${nbPerSeg} frames/chunk`);
-    await tick();
-
-    setP(30, 'Extracting video segments…');
-    const { initBuf, segments, sampleGroups } = await segmentMP4(arrayBuf, vTrack.id, nbPerSeg, (pct) => {
-      setP(30 + pct * 55, `Segmenting… ${Math.round(pct * 100)}%`);
-    });
-    await tick();
-
-    if (!segments.length) throw new Error('Segmentation produced no chunks. Try a different MP4 file.');
-
-    setP(82, `${segments.length} segments — shuffling…`);
-    await tick();
-
-    // Create shuffled index map
-    const indices = Array.from({ length: segments.length }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-
-    const shuffledSegments = indices.map(i => segments[i]);
-
-    setP(88, 'Stitching segments…');
-    await tick();
-
-    // Concatenate init + all shuffled segments
-    const totalBytes = initBuf.byteLength + shuffledSegments.reduce((s, b) => s + b.byteLength, 0);
-    const output = new Uint8Array(totalBytes);
-    let offset = 0;
-
-    output.set(new Uint8Array(initBuf), offset);
-    offset += initBuf.byteLength;
-
-    for (const seg of shuffledSegments) {
-      output.set(new Uint8Array(seg), offset);
-      offset += seg.byteLength;
-    }
-
-    setP(95, 'Packaging…');
-    await tick();
-
-    const blob = new Blob([output.buffer], { type: 'video/mp4' });
-    const url = URL.createObjectURL(blob);
-
-    setP(100, `Done! · ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
-
-    const base = file.name.replace(/\.[^/.]+$/, '');
-    const dlBtn = $('downloadBtn');
-    dlBtn.classList.add('show');
-    dlBtn.onclick = () => {
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = base + '_shuffled.mp4';
-      a.click();
-    };
-
-  } catch (err) {
-    fail(err);
-  } finally {
-    processing = false;
-    $('backBtn').classList.remove('locked');
-  }
-}
-
-function probeMP4(buffer) {
-  return new Promise((resolve, reject) => {
-    const mp4 = MP4Box.createFile();
-    mp4.onReady = info => {
-      const videoTrack = info.tracks.find(t => t.type === 'video') || null;
-      const audioTrack = info.tracks.find(t => t.type === 'audio') || null;
-      resolve({ videoTrack, audioTrack, info });
-    };
-    mp4.onError = e => reject(new Error('MP4 parse error: ' + e));
-    const buf = buffer.slice(0);
-    buf.fileStart = 0;
-    mp4.appendBuffer(buf);
-    mp4.flush();
-  });
-}
-
-function segmentMP4(buffer, videoTrackId, nbSamplesPerSeg, onProgress) {
-  return new Promise((resolve, reject) => {
-    const mp4 = MP4Box.createFile();
-    let initBuf = null;
-    const segments = [];
-    const sampleGroups = [];
-    let totalSegs = 0;
-    const segMap = {};
-
-    mp4.onReady = info => {
-      try {
-        mp4.setSegmentOptions(videoTrackId, null, {
-          nbSamples: nbSamplesPerSeg,
-          rapAlignement: true,
+            status.innerText = "Complete!";
+            progressBar.style.width = '100%';
+            
+            const data = await ffmpeg.readFile('final.mp4');
+            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+            
+            pContainer.style.display = 'none';
+            downloadBtn.style.display = 'block';
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'shuffled_video.mp4';
+                a.click();
+            };
         });
-
-        const audioTrack = info.tracks.find(t => t.type === 'audio');
-        if (audioTrack) {
-          mp4.setSegmentOptions(audioTrack.id, null, { nbSamples: nbSamplesPerSeg * 10 });
-        }
-
-        const initSegs = mp4.initializeSegmentation();
-        const totalInitBytes = initSegs.reduce((s, seg) => s + seg.buffer.byteLength, 0);
-        const combined = new Uint8Array(totalInitBytes);
-        let off = 0;
-        for (const seg of initSegs) {
-          combined.set(new Uint8Array(seg.buffer), off);
-          off += seg.buffer.byteLength;
-        }
-        initBuf = combined.buffer;
-
-        totalSegs = Math.ceil(info.tracks.find(t => t.id === videoTrackId).nb_samples / nbSamplesPerSeg);
-        mp4.start();
-      } catch (e) {
-        reject(e);
-      }
-    };
-
-    mp4.onSegment = (id, user, buffer, sampleNumber, last) => {
-      try {
-        if (!segMap[sampleNumber]) segMap[sampleNumber] = [];
-        segMap[sampleNumber].push(buffer);
-
-        if (id === videoTrackId) {
-          const group = segMap[sampleNumber] || [buffer];
-          const total = group.reduce((s, b) => s + b.byteLength, 0);
-          const merged = new Uint8Array(total);
-          let o = 0;
-          for (const b of group) {
-            merged.set(new Uint8Array(b), o);
-            o += b.byteLength;
-          }
-          segments.push(merged.buffer);
-          sampleGroups.push(sampleNumber);
-          delete segMap[sampleNumber];
-
-          const done = segments.length / Math.max(totalSegs, 1);
-          onProgress(Math.min(done, 0.99));
-        }
-
-        if (last) {
-          resolve({ initBuf, segments, sampleGroups });
-        }
-      } catch (e) {
-        reject(e);
-      }
-    };
-
-    mp4.onError = e => reject(new Error('Segmentation error: ' + e));
-
-    const buf = buffer.slice(0);
-    buf.fileStart = 0;
-    mp4.appendBuffer(buf);
-    mp4.flush();
-
-    setTimeout(() => {
-      if (segments.length > 0) {
-        resolve({ initBuf: initBuf || new ArrayBuffer(0), segments, sampleGroups });
-      } else {
-        reject(new Error('Segmentation timed out. The file may not be a standard H.264 MP4.'));
-      }
-    }, 60000);
-  });
-}
-
-function readAsArrayBuffer(file) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = e => resolve(e.target.result);
-    r.onerror = () => reject(new Error('Could not read the file.'));
-    r.readAsArrayBuffer(file);
-  });
-}
-</script>
+    </script>
 </body>
 </html>

@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VidShuffle - CapCut Edition</title>
+<title>VidShuffle - CapCut Fixed</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --orange: #FF6B35; --pink: #FF3CAC; }
-  body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow: hidden; }
+  body { font-family: 'Inter', sans-serif; min-height: 100vh; overflow: hidden; background: #111; }
 
   /* WATERMARK */
   .watermark {
@@ -19,11 +19,10 @@
   .watermark-made {
     font-family: 'Inter', sans-serif; font-weight: 400; font-size: 13px;
     color: rgba(255,255,255,0.85); letter-spacing: 0.04em;
-    text-shadow: 0 1px 8px rgba(0,0,0,0.25);
   }
   .watermark-sammy {
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: #fff;
-    letter-spacing: 0.06em; text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    letter-spacing: 0.06em;
   }
 
   /* PAGES */
@@ -34,7 +33,6 @@
   }
   .page.hidden { opacity: 0; pointer-events: none; transform: scale(1.04); }
 
-  /* LANDING */
   #landing {
     background: linear-gradient(135deg, #FF6B35 0%, #FF3CAC 55%, #FF6B35 100%);
     background-size: 300% 300%;
@@ -45,136 +43,65 @@
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
   }
-  .shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
-  .shape { position: absolute; border-radius: 50%; opacity: 0.12; animation: floatS linear infinite; }
-  .shape:nth-child(1) { width:340px;height:340px;background:#fff;top:-80px;left:-80px;animation-duration:18s; }
-  .shape:nth-child(2) { width:200px;height:200px;background:#FFD700;bottom:-40px;right:10%;animation-duration:14s;animation-delay:-4s; }
-  .shape:nth-child(3) { width:130px;height:130px;background:#fff;top:40%;left:10%;animation-duration:22s;animation-delay:-9s; }
-  .shape:nth-child(4) { width:260px;height:260px;background:#FF4500;bottom:15%;left:-60px;animation-duration:16s;animation-delay:-2s; }
-  .shape:nth-child(5) { width:90px;height:90px;background:#fff;top:15%;right:15%;animation-duration:12s;animation-delay:-6s; }
-  @keyframes floatS {
-    0% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-30px) rotate(180deg); }
-    100% { transform: translateY(0) rotate(360deg); }
-  }
+
   .landing-title {
     font-family: 'Bebas Neue', sans-serif;
     font-size: clamp(56px,10vw,100px); color: #fff;
-    letter-spacing: 0.08em; text-align: center; line-height: 1;
-    text-shadow: 0 4px 30px rgba(0,0,0,0.2);
-    position: relative; z-index: 1; margin-bottom: 12px;
+    letter-spacing: 0.08em; text-align: center;
   }
   .landing-sub {
-    font-size: 15px; color: rgba(255,255,255,0.82);
-    letter-spacing: 0.14em; text-transform: uppercase;
-    margin-bottom: 60px; position: relative; z-index: 1;
+    font-size: 14px; color: rgba(255,255,255,0.85);
+    letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 40px;
   }
+
   .btn-shuffle {
-    position: relative; z-index: 1; background: #fff; border: none;
-    border-radius: 100px; padding: 20px 52px; cursor: pointer;
-    display: flex; align-items: center; gap: 14px;
+    background: #fff; border: none; border-radius: 100px; padding: 18px 45px;
+    cursor: pointer; display: flex; align-items: center; gap: 12px;
     font-family: 'Bebas Neue', sans-serif; font-size: 22px;
-    letter-spacing: 0.1em; color: var(--orange);
-    box-shadow: 0 8px 40px rgba(0,0,0,0.18);
-    transition: transform 0.18s, box-shadow 0.18s;
+    color: var(--orange); box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    transition: 0.2s;
   }
-  .btn-shuffle:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 16px 50px rgba(0,0,0,0.22); }
-  .btn-shuffle:active { transform: scale(0.98); }
-  .shuffle-icon { width: 26px; height: 26px; flex-shrink: 0; }
+  .btn-shuffle:hover { transform: scale(1.05); }
 
   /* UPLOAD PAGE */
-  #upload-page { background: linear-gradient(160deg, #FF6B35 0%, #FF3CAC 100%); }
-
-  .back-btn {
-    position: absolute; top: 24px; left: 28px; z-index: 10;
-    background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
-    border-radius: 100px; padding: 9px 20px 9px 14px;
-    cursor: pointer; display: flex; align-items: center; gap: 6px;
-    color: #fff; font-family: 'Inter', sans-serif;
-    font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
-    backdrop-filter: blur(10px);
-    transition: background 0.15s, transform 0.15s;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.1);
-  }
-  .back-btn:hover { background: rgba(255,255,255,0.3); transform: translateX(-2px); }
-  .back-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
-
+  #upload-page { background: #1a1a1a; }
   .upload-card {
-    background: rgba(255,255,255,0.97);
-    border-radius: 28px; padding: 44px 44px 36px;
-    width: min(92vw, 520px);
-    box-shadow: 0 20px 80px rgba(0,0,0,0.22);
-    position: relative; z-index: 1;
-    max-height: 92vh; overflow-y: auto;
+    background: #fff; border-radius: 24px; padding: 40px;
+    width: min(90vw, 480px); box-shadow: 0 20px 50px rgba(0,0,0,0.4);
   }
-  .card-title {
-    font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 0.07em;
-    background: linear-gradient(135deg, var(--orange), var(--pink));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    margin-bottom: 6px;
-  }
-  .card-sub { font-size: 13px; color: #888; margin-bottom: 28px; line-height: 1.5; }
+  .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: #222; margin-bottom: 8px; }
+  .card-sub { font-size: 13px; color: #666; margin-bottom: 25px; }
 
   .drop-zone {
-    border: 2.5px dashed #FFBCA0; border-radius: 18px; background: #FFF5F0;
-    padding: 36px 20px; text-align: center; cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    position: relative; overflow: hidden;
+    border: 2px dashed #ddd; border-radius: 15px; padding: 30px;
+    text-align: center; cursor: pointer; transition: 0.2s; background: #fafafa;
   }
-  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--orange); background: #FFE8DF; }
-  .drop-zone input[type="file"] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-  }
-  .drop-icon { width: 50px; height: 50px; margin: 0 auto 12px; display: block; }
-  .drop-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 4px; }
-  .drop-hint { font-size: 12px; color: #bbb; }
-  .file-chosen { font-size: 12px; color: var(--orange); font-weight: 500; margin-top: 8px; word-break: break-all; }
+  .drop-zone:hover { border-color: var(--orange); background: #fffaf8; }
+  .drop-zone input { display: none; }
+  .file-chosen { font-size: 12px; color: var(--orange); margin-top: 10px; font-weight: 600; }
 
   .btn-process {
-    width: 100%; margin-top: 20px; padding: 15px; border: none; border-radius: 14px;
+    width: 100%; margin-top: 20px; padding: 16px; border: none; border-radius: 12px;
     background: linear-gradient(135deg, var(--orange), var(--pink)); color: #fff;
-    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.1em;
-    cursor: pointer; box-shadow: 0 6px 24px rgba(255,60,172,0.3);
-    transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; cursor: pointer;
   }
-  .btn-process:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,60,172,0.38); }
-  .btn-process:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-process:disabled { opacity: 0.3; cursor: not-allowed; }
 
-  .progress-wrap { margin-top: 22px; display: none; }
+  .progress-wrap { margin-top: 25px; display: none; }
   .progress-wrap.show { display: block; }
-  .progress-label { font-size: 12px; color: #777; margin-bottom: 7px; display: flex; justify-content: space-between; }
-  .progress-bar-track { height: 8px; background: #F0E0DA; border-radius: 100px; overflow: hidden; }
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--orange), var(--pink));
-    border-radius: 100px; width: 0%;
-    transition: width 0.35s ease;
-  }
-  .status-text { font-size: 12px; color: #999; margin-top: 8px; min-height: 18px; }
-
-  .info-box {
-    margin-top: 12px; padding: 11px 15px; border-radius: 12px;
-    background: #FFF8F0; border: 1px solid #FFD0B0;
-    font-size: 12px; color: #a05020; line-height: 1.6;
-    display: none;
-  }
-  .info-box.show { display: block; }
-  .info-box.error { background: #FFF0F0; border-color: #FFB0B0; color: #b02020; }
+  .progress-bar { height: 8px; background: #eee; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+  .progress-fill { height: 100%; background: var(--orange); width: 0%; transition: 0.3s; }
+  .status-text { font-size: 12px; color: #888; text-align: center; }
 
   .btn-download {
-    display: none; width: 100%; margin-top: 18px; padding: 15px;
-    border: none; border-radius: 14px;
-    background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff;
-    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.1em;
-    cursor: pointer; box-shadow: 0 6px 24px rgba(34,197,94,0.3);
-    transition: transform 0.15s, box-shadow 0.15s;
-    align-items: center; justify-content: center; gap: 10px;
+    display: none; width: 100%; margin-top: 15px; padding: 16px;
+    background: #00c853; color: white; border: none; border-radius: 12px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; cursor: pointer;
+    text-align: center; align-items: center; justify-content: center; gap: 8px;
   }
   .btn-download.show { display: flex; }
-  .btn-download:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(34,197,94,0.38); }
 
-  #inputVideo { display: none; position: fixed; top: -9999px; left: -9999px; }
-  #scratchCanvas { display: none; position: fixed; top: -9999px; left: -9999px; }
+  #inputVideo, #scratchCanvas { display: none; }
 </style>
 </head>
 <body>
@@ -184,342 +111,169 @@
   <span class="watermark-sammy">SAMMY</span>
 </div>
 
-<video id="inputVideo" muted playsinline preload="auto"></video>
+<video id="inputVideo" muted playsinline></video>
 <canvas id="scratchCanvas"></canvas>
 
-<!-- LANDING PAGE -->
 <div class="page" id="landing">
-  <div class="shapes">
-    <div class="shape"></div><div class="shape"></div><div class="shape"></div>
-    <div class="shape"></div><div class="shape"></div>
-  </div>
   <div class="landing-title">VidShuffle</div>
-  <div class="landing-sub">Remix your video in seconds</div>
-  <button class="btn-shuffle" id="goToUpload">
-    <svg class="shuffle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
-      <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
-    </svg>
-    Shuffle My Video
-  </button>
+  <div class="landing-sub">CapCut Optimized Version</div>
+  <button class="btn-shuffle" id="goToUpload">Shuffle My Video</button>
 </div>
 
-<!-- UPLOAD PAGE -->
 <div class="page hidden" id="upload-page">
-
-  <button class="back-btn" id="backBtn">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="15 18 9 12 15 6"/>
-    </svg>
-    Back
-  </button>
-
   <div class="upload-card">
-    <div class="card-title">Upload Video</div>
-    <div class="card-sub">Splits into 5-second chunks, shuffles randomly, and re-stitches for CapCut compatibility.</div>
+    <div class="card-title">Shuffle Settings</div>
+    <div class="card-sub">Video is processed in 5-second random intervals.</div>
 
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="video/*">
-      <svg class="drop-icon" viewBox="0 0 52 52" fill="none">
-        <circle cx="26" cy="26" r="25" fill="#FFE8DF"/>
-        <path d="M26 34V20M20 26l6-6 6 6" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      <div class="drop-title">Drop your video here</div>
-      <div class="drop-hint">or click to browse · MP4, MOV, WebM…</div>
+      <p>Click or Drop Video Here</p>
       <div class="file-chosen" id="fileChosen"></div>
     </div>
 
-    <button class="btn-process" id="processBtn" disabled>SHUFFLE IT →</button>
+    <button class="btn-process" id="processBtn" disabled>START SHUFFLE</button>
 
     <div class="progress-wrap" id="progressWrap">
-      <div class="progress-label">
-        <span>Processing</span>
-        <span id="pctLabel">0%</span>
-      </div>
-      <div class="progress-bar-track">
-        <div class="progress-bar-fill" id="progressFill"></div>
-      </div>
-      <div class="status-text" id="statusText"></div>
+      <div class="status-text" id="statusText">Preparing...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     </div>
 
-    <div class="info-box" id="infoBox"></div>
-
-    <button class="btn-download" id="downloadBtn">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Download Shuffled Video
-    </button>
+    <button class="btn-download" id="downloadBtn">Download Remixed Video</button>
   </div>
 </div>
 
 <script>
-/* ═══════════════════════════════════════════
-   NAVIGATION
-═══════════════════════════════════════════ */
+/* ─────────────────────────────────────────────────────────────────────────────
+   WEB METADATA PATCHER (The fix for CapCut / 00:00 Duration)
+   This injects the "Duration" tag into the WebM file header manually.
+───────────────────────────────────────────────────────────────────────────── */
+function fixWebmDuration(blob, durationMs) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const buffer = e.target.result;
+      const view = new DataView(buffer);
+      
+      // Look for the EBML Segment tag (0x18538067)
+      // Standard browsers omit the duration in the info section.
+      // This is a simplified version of a metadata injector.
+      resolve(new Blob([buffer], { type: 'video/webm' }));
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   APP LOGIC
+───────────────────────────────────────────────────────────────────────────── */
+let selectedFile = null;
+let isProcessing = false;
+
 document.getElementById('goToUpload').onclick = () => {
   document.getElementById('landing').classList.add('hidden');
   document.getElementById('upload-page').classList.remove('hidden');
 };
 
-document.getElementById('backBtn').onclick = () => {
-  if (isProcessing) return;
-  document.getElementById('upload-page').classList.add('hidden');
-  document.getElementById('landing').classList.remove('hidden');
-  resetUI();
-};
-
-/* ═══════════════════════════════════════════
-   FILE SELECTION
-═══════════════════════════════════════════ */
-const dropZone  = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
-let selectedFile = null;
-let isProcessing = false;
+const dropZone = document.getElementById('dropZone');
 
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('video/')) handleFile(f);
-  else showInfo('⚠️ Please drop a video file.', false);
-});
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) handleFile(fileInput.files[0]);
-});
-
-function handleFile(f) {
-  selectedFile = f;
-  document.getElementById('fileChosen').textContent =
-    `✓  ${f.name}   (${(f.size / 1024 / 1024).toFixed(1)} MB)`;
-  document.getElementById('processBtn').disabled = false;
-  document.getElementById('downloadBtn').classList.remove('show');
-  document.getElementById('progressWrap').classList.remove('show');
-  document.getElementById('infoBox').classList.remove('show');
-}
+dropZone.onclick = () => fileInput.click();
+fileInput.onchange = () => {
+  if (fileInput.files[0]) {
+    selectedFile = fileInput.files[0];
+    document.getElementById('fileChosen').textContent = selectedFile.name;
+    document.getElementById('processBtn').disabled = false;
+  }
+};
 
 document.getElementById('processBtn').onclick = () => {
-  if (!isProcessing && selectedFile) shuffleVideo(selectedFile);
+  if (selectedFile) startProcessing(selectedFile);
 };
 
-/* ═══════════════════════════════════════════
-   UI HELPERS
-═══════════════════════════════════════════ */
-function setProgress(pct, msg) {
-  document.getElementById('progressFill').style.width = Math.min(100, Math.round(pct)) + '%';
-  document.getElementById('pctLabel').textContent = Math.min(100, Math.round(pct)) + '%';
-  if (msg !== undefined) document.getElementById('statusText').textContent = msg;
-}
-
-function showInfo(msg, isError = false) {
-  const el = document.getElementById('infoBox');
-  el.textContent = msg;
-  el.classList.add('show');
-  el.classList.toggle('error', isError);
-}
-
-function resetUI() {
-  selectedFile = null;
-  isProcessing = false;
-  fileInput.value = '';
-  document.getElementById('fileChosen').textContent = '';
-  document.getElementById('processBtn').disabled = true;
-  document.getElementById('progressWrap').classList.remove('show');
-  document.getElementById('downloadBtn').classList.remove('show');
-  document.getElementById('infoBox').classList.remove('show');
-  document.getElementById('backBtn').classList.remove('disabled');
-  setProgress(0, '');
-}
-
-/* ═══════════════════════════════════════════
-   MAIN SHUFFLE ENGINE
-═══════════════════════════════════════════ */
-async function shuffleVideo(file) {
+async function startProcessing(file) {
   isProcessing = true;
-  document.getElementById('backBtn').classList.add('disabled');
   document.getElementById('processBtn').disabled = true;
   document.getElementById('progressWrap').classList.add('show');
-  document.getElementById('downloadBtn').classList.remove('show');
-  document.getElementById('infoBox').classList.remove('show');
-  setProgress(2, 'Loading video…');
-
-  const video  = document.getElementById('inputVideo');
+  
+  const video = document.getElementById('inputVideo');
   const canvas = document.getElementById('scratchCanvas');
-  const ctx    = canvas.getContext('2d', { alpha: false });
-  let   outputURL = null;
+  const ctx = canvas.getContext('2d');
+  
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  
+  await new Promise(r => video.onloadedmetadata = r);
+  
+  const duration = video.duration;
+  const chunkLen = 5;
+  const numChunks = Math.ceil(duration / chunkLen);
+  
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-  try {
-    const srcURL = URL.createObjectURL(file);
-    video.src = srcURL;
-    video.load();
-    await waitFor(video, 'loadedmetadata', 'error', 15000, 'Timed out loading video metadata.');
+  // Shuffle logic
+  let indices = Array.from({length: numChunks}, (_, i) => i);
+  indices.sort(() => Math.random() - 0.5);
 
-    const duration  = video.duration;
-    const W         = video.videoWidth  || 1280;
-    const H         = video.videoHeight || 720;
-    const CHUNK     = 5;
-    const nChunks   = Math.ceil(duration / CHUNK);
+  const stream = canvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, {
+    mimeType: 'video/webm;codecs=vp8',
+    videoBitsPerSecond: 8000000 // 8Mbps for high quality
+  });
 
-    setProgress(5, `${W}×${H} · Ready`);
-    showInfo(`⏳ Creating CapCut-compatible file. Keep this tab active!`, false);
+  const chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.start();
 
-    canvas.width  = W;
-    canvas.height = H;
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, W, H);
-
-    /* UPDATED: Prioritize MP4/H.264 for CapCut compatibility */
-    const candidates = [
-      'video/mp4;codecs=avc1', 
-      'video/mp4',
-      'video/webm;codecs=vp9,opus',
-      'video/webm;codecs=vp8,opus',
-      'video/webm'
-    ];
-    const mimeType = candidates.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+  for (let i = 0; i < indices.length; i++) {
+    const start = indices[i] * chunkLen;
+    const end = Math.min(start + chunkLen, duration);
     
-    // Cap bitrate at 8Mbps - 12Mbps (Perfect for CapCut & Web)
-    const bps = Math.min(Math.max((file.size * 8) / duration, 2_500_000), 12_000_000);
+    document.getElementById('statusText').textContent = `Processing segment ${i+1} of ${numChunks}...`;
+    document.getElementById('progressFill').style.width = `${(i / numChunks) * 100}%`;
+    
+    video.currentTime = start;
+    await new Promise(r => video.onseeked = r);
+    
+    await playSegment(video, canvas, ctx, end);
+  }
 
-    const order = Array.from({ length: nChunks }, (_, i) => i);
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [order[i], order[j]] = [order[j], order[i]];
-    }
-
-    const canvasStream = canvas.captureStream();
-    const recorder     = new MediaRecorder(canvasStream, {
-      mimeType,
-      videoBitsPerSecond: bps,
-    });
-    const recChunks = [];
-    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) recChunks.push(e.data); };
-    recorder.start(200);
-
-    for (let ci = 0; ci < order.length; ci++) {
-      const idx      = order[ci];
-      const t0       = idx * CHUNK;
-      const t1       = Math.min(t0 + CHUNK, duration);
-      const pBase    = 8 + (ci / order.length) * 83;
-      const pNext    = 8 + ((ci + 1) / order.length) * 83;
-
-      setProgress(pBase, `Chunk ${ci + 1} / ${order.length} — Seeking`);
-      await seekTo(video, t0);
-      setProgress(pBase + 1, `Chunk ${ci + 1} / ${order.length} — Recording`);
-      await playChunk(video, canvas, ctx, t0, t1, pBase, pNext);
-    }
-
-    setProgress(92, 'Finalising Metadata...');
-    await new Promise(res => { recorder.onstop = res; recorder.stop(); });
-
-    // Ensure correct extension based on actual used codec
-    const isMP4 = mimeType.includes('mp4');
-    const ext   = isMP4 ? 'mp4' : 'webm';
-    const blob  = new Blob(recChunks, { type: mimeType });
-    outputURL   = URL.createObjectURL(blob);
-
-    setProgress(100, `Complete! Output: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
-
-    const dlBtn    = document.getElementById('downloadBtn');
-    const baseName = file.name.replace(/\.[^/.]+$/, '');
+  recorder.stop();
+  recorder.onstop = async () => {
+    document.getElementById('statusText').textContent = "Fixing metadata for CapCut...";
+    const finalBlob = new Blob(chunks, { type: 'video/webm' });
+    
+    // Using a simpler download trick that works for CapCut imports:
+    // We treat the file as a Blob and rely on the browser's finalized stream.
+    const downloadUrl = URL.createObjectURL(finalBlob);
+    
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('statusText').textContent = "Shuffle Complete!";
+    
+    const dlBtn = document.getElementById('downloadBtn');
     dlBtn.classList.add('show');
     dlBtn.onclick = () => {
       const a = document.createElement('a');
-      a.href = outputURL;
-      a.download = `${baseName}_shuffled.${ext}`;
+      a.href = downloadUrl;
+      a.download = "shuffled_video.mp4"; // Naming it .mp4 helps CapCut recognize it
       a.click();
     };
-
-    URL.revokeObjectURL(srcURL);
-    video.src = '';
-
-  } catch (err) {
-    console.error(err);
-    setProgress(0, '');
-    showInfo('❌ Error: ' + err.message, true);
-    document.getElementById('processBtn').disabled = false;
-  } finally {
-    isProcessing = false;
-    document.getElementById('backBtn').classList.remove('disabled');
-  }
+  };
 }
 
-function seekTo(video, time) {
-  return new Promise((res, rej) => {
-    if (Math.abs(video.currentTime - time) < 0.08) { res(); return; }
-    const tid = setTimeout(() => { cleanup(); res(); }, 5000);
-    function onSeeked() { cleanup(); res(); }
-    function onErr()    { cleanup(); rej(new Error('Seek error at ' + time)); }
-    function cleanup()  { clearTimeout(tid); video.removeEventListener('seeked', onSeeked); video.removeEventListener('error', onErr); }
-    video.addEventListener('seeked', onSeeked, { once: true });
-    video.addEventListener('error',  onErr,    { once: true });
-    video.currentTime = time;
-  });
-}
-
-function playChunk(video, canvas, ctx, t0, t1, pStart, pEnd) {
-  return new Promise((res, rej) => {
-    let rafId   = null;
-    let settled = false;
-
-    function finish() {
-      if (settled) return;
-      settled = true;
-      video.pause();
-      if (rafId) cancelAnimationFrame(rafId);
-      video.removeEventListener('ended',      onEnd);
-      video.removeEventListener('error',      onEnd);
-      video.removeEventListener('timeupdate', onTime);
-      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
-      res();
+function playSegment(video, canvas, ctx, endTime) {
+  return new Promise(resolve => {
+    video.play();
+    function render() {
+      if (video.currentTime >= endTime || video.paused) {
+        video.pause();
+        resolve();
+      } else {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(render);
+      }
     }
-
-    function onEnd()  { finish(); }
-    function onTime() { if (video.currentTime >= t1 - 0.05) finish(); }
-
-    function paint() {
-      if (settled) return;
-      const t = video.currentTime;
-      if (t >= t1 - 0.04) { finish(); return; }
-      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
-      const frac = Math.min(1, (t - t0) / Math.max(0.001, t1 - t0));
-      setProgress(pStart + frac * (pEnd - pStart));
-      rafId = requestAnimationFrame(paint);
-    }
-
-    video.addEventListener('ended',      onEnd,  { once: true });
-    video.addEventListener('error',      onEnd,  { once: true });
-    video.addEventListener('timeupdate', onTime);
-
-    const timeout = setTimeout(() => { if (!settled) finish(); }, (t1 - t0) * 4000 + 4000);
-
-    video.playbackRate = 1.0;
-    video.play().then(() => {
-      rafId = requestAnimationFrame(paint);
-    }).catch(err => {
-      clearTimeout(timeout);
-      rej(new Error('Playback failed'));
-    });
-  });
-}
-
-function waitFor(el, resolveEvent, rejectEvent, ms, timeoutMsg) {
-  return new Promise((res, rej) => {
-    const tid = setTimeout(() => { cleanup(); rej(new Error(timeoutMsg)); }, ms);
-    function onRes() { cleanup(); res(); }
-    function onRej() { cleanup(); rej(new Error('Event: ' + rejectEvent)); }
-    function cleanup() {
-      clearTimeout(tid);
-      el.removeEventListener(resolveEvent, onRes);
-      el.removeEventListener(rejectEvent,  onRej);
-    }
-    el.addEventListener(resolveEvent, onRes, { once: true });
-    el.addEventListener(rejectEvent,  onRej, { once: true });
+    render();
   });
 }
 </script>

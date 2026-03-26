@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VidShuffle</title>
+<title>VidShuffle - CapCut Edition</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -85,7 +85,6 @@
   /* UPLOAD PAGE */
   #upload-page { background: linear-gradient(160deg, #FF6B35 0%, #FF3CAC 100%); }
 
-  /* Back button */
   .back-btn {
     position: absolute; top: 24px; left: 28px; z-index: 10;
     background: rgba(255,255,255,0.18); border: 1.5px solid rgba(255,255,255,0.4);
@@ -217,7 +216,7 @@
 
   <div class="upload-card">
     <div class="card-title">Upload Video</div>
-    <div class="card-sub">Splits into 5-second chunks, shuffles randomly, stitches back — all in your browser.</div>
+    <div class="card-sub">Splits into 5-second chunks, shuffles randomly, and re-stitches for CapCut compatibility.</div>
 
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept="video/*">
@@ -339,13 +338,6 @@ function resetUI() {
 
 /* ═══════════════════════════════════════════
    MAIN SHUFFLE ENGINE
-
-   Approach: real-time playback capture.
-   Each chunk is played at normal speed while
-   requestAnimationFrame paints frames to the
-   canvas. MediaRecorder records the canvas
-   stream continuously. This gives smooth,
-   native-quality output regardless of length.
 ═══════════════════════════════════════════ */
 async function shuffleVideo(file) {
   isProcessing = true;
@@ -362,7 +354,6 @@ async function shuffleVideo(file) {
   let   outputURL = null;
 
   try {
-    /* 1 ── Decode metadata */
     const srcURL = URL.createObjectURL(file);
     video.src = srcURL;
     video.load();
@@ -374,37 +365,33 @@ async function shuffleVideo(file) {
     const CHUNK     = 5;
     const nChunks   = Math.ceil(duration / CHUNK);
 
-    setProgress(5, `${W}×${H} · ${duration.toFixed(1)}s · ${nChunks} chunks`);
-    showInfo(
-      `⏳ Processing plays the video in real time — about ${duration.toFixed(0)}s total. Keep this tab active for best results.`,
-      false
-    );
+    setProgress(5, `${W}×${H} · Ready`);
+    showInfo(`⏳ Creating CapCut-compatible file. Keep this tab active!`, false);
 
-    /* 2 ── Canvas size */
     canvas.width  = W;
     canvas.height = H;
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
 
-    /* 3 ── Codec & bitrate */
+    /* UPDATED: Prioritize MP4/H.264 for CapCut compatibility */
     const candidates = [
+      'video/mp4;codecs=avc1', 
+      'video/mp4',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm',
+      'video/webm'
     ];
     const mimeType = candidates.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
-    const bps = Math.min(Math.max((file.size * 8) / duration, 800_000), 40_000_000);
+    
+    // Cap bitrate at 8Mbps - 12Mbps (Perfect for CapCut & Web)
+    const bps = Math.min(Math.max((file.size * 8) / duration, 2_500_000), 12_000_000);
 
-    /* 4 ── Shuffle order (Fisher-Yates) */
     const order = Array.from({ length: nChunks }, (_, i) => i);
     for (let i = order.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [order[i], order[j]] = [order[j], order[i]];
     }
 
-    /* 5 ── Start recorder */
     const canvasStream = canvas.captureStream();
     const recorder     = new MediaRecorder(canvasStream, {
       mimeType,
@@ -412,9 +399,8 @@ async function shuffleVideo(file) {
     });
     const recChunks = [];
     recorder.ondataavailable = e => { if (e.data && e.data.size > 0) recChunks.push(e.data); };
-    recorder.start(200); // flush every 200 ms — essential for long videos
+    recorder.start(200);
 
-    /* 6 ── Process each chunk */
     for (let ci = 0; ci < order.length; ci++) {
       const idx      = order[ci];
       const t0       = idx * CHUNK;
@@ -422,23 +408,22 @@ async function shuffleVideo(file) {
       const pBase    = 8 + (ci / order.length) * 83;
       const pNext    = 8 + ((ci + 1) / order.length) * 83;
 
-      setProgress(pBase, `Chunk ${ci + 1} / ${order.length}  —  seeking…`);
+      setProgress(pBase, `Chunk ${ci + 1} / ${order.length} — Seeking`);
       await seekTo(video, t0);
-
-      setProgress(pBase + 1, `Chunk ${ci + 1} / ${order.length}  —  recording…`);
+      setProgress(pBase + 1, `Chunk ${ci + 1} / ${order.length} — Recording`);
       await playChunk(video, canvas, ctx, t0, t1, pBase, pNext);
     }
 
-    /* 7 ── Finalise */
-    setProgress(92, 'Finalising…');
+    setProgress(92, 'Finalising Metadata...');
     await new Promise(res => { recorder.onstop = res; recorder.stop(); });
 
-    const ext  = mimeType.includes('mp4') ? 'mp4' : 'webm';
-    const blob = new Blob(recChunks, { type: mimeType });
-    outputURL  = URL.createObjectURL(blob);
+    // Ensure correct extension based on actual used codec
+    const isMP4 = mimeType.includes('mp4');
+    const ext   = isMP4 ? 'mp4' : 'webm';
+    const blob  = new Blob(recChunks, { type: mimeType });
+    outputURL   = URL.createObjectURL(blob);
 
-    setProgress(100, `Done!  Output: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
-    document.getElementById('infoBox').classList.remove('show');
+    setProgress(100, `Complete! Output: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
 
     const dlBtn    = document.getElementById('downloadBtn');
     const baseName = file.name.replace(/\.[^/.]+$/, '');
@@ -456,7 +441,7 @@ async function shuffleVideo(file) {
   } catch (err) {
     console.error(err);
     setProgress(0, '');
-    showInfo('❌ ' + (err.message || 'Unknown error. Please try again.'), true);
+    showInfo('❌ Error: ' + err.message, true);
     document.getElementById('processBtn').disabled = false;
   } finally {
     isProcessing = false;
@@ -464,15 +449,12 @@ async function shuffleVideo(file) {
   }
 }
 
-/* ─────────────────────────────────────────────
-   Seek video to exact time, waiting for seeked
-───────────────────────────────────────────── */
 function seekTo(video, time) {
   return new Promise((res, rej) => {
     if (Math.abs(video.currentTime - time) < 0.08) { res(); return; }
-    const tid = setTimeout(() => { cleanup(); res(); }, 5000); // timeout fallback
+    const tid = setTimeout(() => { cleanup(); res(); }, 5000);
     function onSeeked() { cleanup(); res(); }
-    function onErr()    { cleanup(); rej(new Error('Seek error at ' + time.toFixed(2) + 's')); }
+    function onErr()    { cleanup(); rej(new Error('Seek error at ' + time)); }
     function cleanup()  { clearTimeout(tid); video.removeEventListener('seeked', onSeeked); video.removeEventListener('error', onErr); }
     video.addEventListener('seeked', onSeeked, { once: true });
     video.addEventListener('error',  onErr,    { once: true });
@@ -480,10 +462,6 @@ function seekTo(video, time) {
   });
 }
 
-/* ─────────────────────────────────────────────
-   Play video from t0→t1, painting every rAF
-   onto the canvas for smooth recording.
-───────────────────────────────────────────── */
 function playChunk(video, canvas, ctx, t0, t1, pStart, pEnd) {
   return new Promise((res, rej) => {
     let rafId   = null;
@@ -497,7 +475,6 @@ function playChunk(video, canvas, ctx, t0, t1, pStart, pEnd) {
       video.removeEventListener('ended',      onEnd);
       video.removeEventListener('error',      onEnd);
       video.removeEventListener('timeupdate', onTime);
-      // Render one final frame
       try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
       res();
     }
@@ -519,24 +496,18 @@ function playChunk(video, canvas, ctx, t0, t1, pStart, pEnd) {
     video.addEventListener('error',      onEnd,  { once: true });
     video.addEventListener('timeupdate', onTime);
 
-    // Safety: if chunk takes >4× real-time, move on
-    const timeout = setTimeout(() => {
-      if (!settled) { console.warn('Chunk timeout — moving on'); finish(); }
-    }, (t1 - t0) * 4000 + 4000);
+    const timeout = setTimeout(() => { if (!settled) finish(); }, (t1 - t0) * 4000 + 4000);
 
     video.playbackRate = 1.0;
     video.play().then(() => {
       rafId = requestAnimationFrame(paint);
     }).catch(err => {
       clearTimeout(timeout);
-      rej(new Error('Playback failed: ' + err.message));
+      rej(new Error('Playback failed'));
     });
   });
 }
 
-/* ─────────────────────────────────────────────
-   Wait for an event on an element (with timeout)
-───────────────────────────────────────────── */
 function waitFor(el, resolveEvent, rejectEvent, ms, timeoutMsg) {
   return new Promise((res, rej) => {
     const tid = setTimeout(() => { cleanup(); rej(new Error(timeoutMsg)); }, ms);
@@ -554,4 +525,3 @@ function waitFor(el, resolveEvent, rejectEvent, ms, timeoutMsg) {
 </script>
 </body>
 </html>
-

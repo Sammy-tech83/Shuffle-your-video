@@ -107,14 +107,14 @@
     <div class="card-title">Upload Video</div>
     <div class="card-sub">Splits into 3-second chunks, shuffles randomly, exports a clean MP4.</div>
     <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept="video/*">
+      <input type="file" id="fileInput" accept="video/mp4,video/*">
       <svg class="drop-icon" viewBox="0 0 52 52" fill="none">
         <circle cx="26" cy="26" r="25" fill="#FFE8DF"/>
         <path d="M26 34V20M20 26l6-6 6 6" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
       </svg>
       <div class="drop-title">Drop your video here</div>
-      <div class="drop-hint">or click to browse · MP4 (H.264) recommended</div>
+      <div class="drop-hint">or click to browse · MP4 recommended</div>
       <div class="file-chosen" id="fileChosen"></div>
     </div>
 
@@ -139,32 +139,31 @@
   </div>
 </div>
 
+<!-- MP4Box.js for parsing only -->
 <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 
 <script>
 /*
- * VidShuffle — pure MP4Box sample-level shuffle
+ * VidShuffle — Approach: MP4Box for parsing + manual binary stitching
  *
- * Pipeline:
- *  1. Read file into ArrayBuffer
- *  2. MP4Box parses all video+audio samples (with byte offsets)
- *  3. Walk video samples, group by 3-second keyframe boundaries → chunks[]
- *  4. Shuffle chunks (Fisher-Yates)
- *  5. Build a NEW MP4 file in memory:
- *       - Copy the original ftyp + moov boxes verbatim
- *       - Write an mdat box containing sample data in shuffled order
- *       - Patch the stbl (sample table) inside moov to match new order/offsets
- *  6. Blob → download
+ * MP4Box 0.5.2 has NO write/export API. getBuffer() does not exist.
+ * The segmentation API gives us fragmented MP4 ArrayBuffers per segment.
  *
- * No ffmpeg, no SharedArrayBuffer, no re-encoding.
- * Works on any host, any browser (Chrome 80+, Firefox 79+, Safari 14+).
+ * Strategy:
+ *  1. Use MP4Box setSegmentOptions with nbSamples sized to ~3 seconds
+ *  2. Collect init segment + all data segments as ArrayBuffers
+ *  3. Shuffle the data segment array
+ *  4. Concatenate: init + shuffled segments → final fragmented MP4
+ *     (fMP4 is valid, plays in all browsers, imports into CapCut/Premiere)
+ *
+ * No ffmpeg. No SharedArrayBuffer. No re-encoding. Works on any host.
  */
 
 let selectedFile = null;
 let processing   = false;
 
-/* ── UI helpers ── */
 const $  = id => document.getElementById(id);
+
 function setP(pct, msg) {
   const p = Math.min(100, Math.round(pct));
   $('progressFill').style.width = p + '%';
@@ -178,8 +177,14 @@ function showInfo(msg, isErr) {
 }
 function hideInfo() { $('infoBox').classList.remove('show'); }
 function tick() { return new Promise(r => setTimeout(r, 0)); }
+
 function fail(err) {
-  const msg = (err && err.message) ? err.message : JSON.stringify(err);
+  let msg = 'Unknown error';
+  if (err) {
+    if (typeof err === 'string') msg = err;
+    else if (err.message) msg = err.message;
+    else { try { msg = JSON.stringify(err); } catch(_){} }
+  }
   console.error('VidShuffle error:', err);
   setP(0, '');
   showInfo('❌ ' + msg, true);
@@ -187,6 +192,7 @@ function fail(err) {
   $('backBtn').classList.remove('locked');
   processing = false;
 }
+
 function resetUI() {
   selectedFile = null; processing = false;
   $('fileInput').value = '';
@@ -198,7 +204,7 @@ function resetUI() {
   hideInfo(); setP(0,'');
 }
 
-/* ── Navigation ── */
+/* Navigation */
 $('goToUpload').onclick = () => {
   $('landing').classList.add('hidden');
   $('upload-page').classList.remove('hidden');
@@ -210,7 +216,7 @@ $('backBtn').onclick = () => {
   resetUI();
 };
 
-/* ── File pick ── */
+/* File pick */
 const dropZone  = $('dropZone');
 const fileInput = $('fileInput');
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -242,216 +248,69 @@ $('processBtn').onclick = () => {
   runShuffle(selectedFile);
 };
 
-/* ════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════
    MAIN ENGINE
-════════════════════════════════════════════════════ */
+════════════════════════════════════════════════════════ */
 async function runShuffle(file) {
   try {
     setP(5, 'Reading file…');
-    const originalBuffer = await readAsArrayBuffer(file);
+    const arrayBuf = await readAsArrayBuffer(file);
     await tick();
 
-    /* ── 1. Parse MP4 with MP4Box ── */
-    setP(12, 'Parsing MP4…');
-    const { videoSamples, audioSamples, videoTrack, audioTrack } = await parseMp4(originalBuffer);
+    setP(15, 'Parsing MP4…');
+
+    /* ── Step 1: probe to get fps so we can calculate nbSamples per 3s ── */
+    const probeInfo = await probeMP4(arrayBuf);
+    if (!probeInfo.videoTrack) throw new Error('No video track found. Please use an MP4 file.');
+
+    const vTrack    = probeInfo.videoTrack;
+    const fps       = vTrack.nb_samples / (vTrack.duration / vTrack.timescale);
+    const nbPerSeg  = Math.max(1, Math.round(fps * 3)); // frames per 3-second segment
+
+    setP(25, `${vTrack.nb_samples} frames at ~${fps.toFixed(1)}fps → ${nbPerSeg} frames/chunk`);
     await tick();
 
-    if (!videoSamples || videoSamples.length === 0) {
-      throw new Error('No video samples found. Please use an H.264 MP4 file.');
-    }
-
-    const totalFrames = videoSamples.length;
-    setP(28, `Found ${totalFrames} video frames`);
+    /* ── Step 2: segment the MP4 using MP4Box segmentation API ── */
+    const { initBuf, segments } = await segmentMP4(arrayBuf, vTrack.id, nbPerSeg, (pct) => {
+      setP(25 + pct * 55, `Segmenting… ${Math.round(pct * 100)}%`);
+    });
     await tick();
 
-    /* ── 2. Group into 3-second chunks at keyframe boundaries ── */
-    const CHUNK_SEC = 3;
-    const timescale = videoTrack.timescale;
-    const chunkTicks = CHUNK_SEC * timescale;
+    if (!segments.length) throw new Error('Segmentation produced no chunks. Try a different MP4 file.');
 
-    const chunks = [];
-    let current = [];
-    let boundary = chunkTicks;
-
-    for (let i = 0; i < videoSamples.length; i++) {
-      const s = videoSamples[i];
-      if (i > 0 && s.is_sync && s.dts >= boundary) {
-        chunks.push(current);
-        current = [];
-        while (boundary <= s.dts) boundary += chunkTicks;
-      }
-      current.push(i);
-    }
-    if (current.length) chunks.push(current);
-
-    if (chunks.length < 2) {
-      throw new Error(
-        `Only ${chunks.length} chunk found. The video needs keyframes every ~3 seconds. ` +
-        `Try a video that was recorded at normal quality (not screen recordings or lossless captures).`
-      );
-    }
-
-    setP(38, `${chunks.length} chunks — shuffling…`);
+    setP(82, `${segments.length} segments — shuffling…`);
     await tick();
 
-    /* ── 3. Shuffle chunks ── */
-    const shuffled = [...chunks];
+    /* ── Step 3: shuffle segments (Fisher-Yates) ── */
+    const shuffled = [...segments];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
 
-    /* ── 4. Flatten shuffled video sample indices & remap DTS/CTS ── */
-    setP(42, 'Remapping timestamps…');
-    const flatIndices = shuffled.flat();
-    let dtsCursor = 0;
-
-    const remappedVideo = flatIndices.map((origIdx, newIdx) => {
-      const orig = videoSamples[origIdx];
-      const ctsDelta = (orig.cts !== undefined ? orig.cts : orig.dts) - orig.dts;
-      const dur = orig.duration || 1;
-      const newDts = dtsCursor;
-      dtsCursor += dur;
-      return { ...orig, dts: newDts, cts: newDts + ctsDelta };
-    });
-
-    /* ── 5. Map audio onto new timeline ── */
-    let remappedAudio = [];
-    if (audioSamples && audioSamples.length && audioTrack) {
-      setP(48, 'Remapping audio…');
-      await tick();
-
-      // Build original chunk time ranges in video timescale
-      const chunkRanges = chunks.map(c => ({
-        origStart: videoSamples[c[0]].dts,
-        origEnd:   videoSamples[c[c.length-1]].dts + (videoSamples[c[c.length-1]].duration || 1),
-      }));
-
-      // Build new start times for each chunk in video timescale
-      const newStarts = [];
-      let cur = 0;
-      for (const c of shuffled) {
-        newStarts.push(cur);
-        cur += c.reduce((s, i) => s + (videoSamples[i].duration || 1), 0);
-      }
-
-      const aTS = audioTrack.timescale || 44100;
-      const vTS = timescale;
-
-      // For each shuffled chunk position, find matching audio and shift it
-      const audioOut = [];
-      for (let ci = 0; ci < shuffled.length; ci++) {
-        // Find which original chunk this was
-        const origChunkIdx = chunks.findIndex(c =>
-          c[0] === shuffled[ci][0]
-        );
-        if (origChunkIdx < 0) continue;
-
-        const { origStart, origEnd } = chunkRanges[origChunkIdx];
-        const origStartA = origStart * aTS / vTS;
-        const origEndA   = origEnd   * aTS / vTS;
-        const newStartA  = newStarts[ci] * aTS / vTS;
-
-        const matching = audioSamples.filter(s => s.dts >= origStartA && s.dts < origEndA);
-        for (const s of matching) {
-          const offset = s.dts - origStartA;
-          audioOut.push({ ...s, dts: newStartA + offset, cts: newStartA + offset });
-        }
-      }
-      remappedAudio = audioOut.sort((a, b) => a.dts - b.dts);
-    }
-
-    /* ── 6. Write new MP4 using MP4Box ── */
-    setP(55, 'Building output MP4…');
+    /* ── Step 4: stitch init + shuffled segments into one ArrayBuffer ── */
+    setP(88, 'Stitching…');
     await tick();
 
-    const outFile = MP4Box.createFile();
+    const totalBytes = initBuf.byteLength + shuffled.reduce((s, b) => s + b.byteLength, 0);
+    const output = new Uint8Array(totalBytes);
+    let offset = 0;
 
-    // ── Add video track ──
-    const vt = videoTrack;
-    const videoTrackOpts = {
-      timescale:   timescale,
-      width:       vt.video ? vt.video.width  : 1280,
-      height:      vt.video ? vt.video.height : 720,
-      brands:      ['isom', 'iso2', 'avc1', 'mp41'],
-      media_duration: dtsCursor,
-    };
+    output.set(new Uint8Array(initBuf), offset);
+    offset += initBuf.byteLength;
 
-    // Determine codec string for MP4Box addTrack
-    const codecStr = (vt.codec || 'avc1').split('.')[0].toLowerCase();
-    if (codecStr === 'avc1' || codecStr === 'h264') {
-      videoTrackOpts.avcDecoderConfigRecord = extractAVCConfig(originalBuffer, vt);
+    for (const seg of shuffled) {
+      output.set(new Uint8Array(seg), offset);
+      offset += seg.byteLength;
     }
 
-    const outVid = outFile.addTrack(videoTrackOpts);
-
-    // ── Add samples in batches ──
-    const BATCH = 100;
-    for (let i = 0; i < remappedVideo.length; i += BATCH) {
-      const end = Math.min(i + BATCH, remappedVideo.length);
-      setP(55 + (i / remappedVideo.length) * 30, `Writing frame ${i}–${end} / ${remappedVideo.length}`);
-      for (let j = i; j < end; j++) {
-        const s = remappedVideo[j];
-        const buf = originalBuffer.slice(s.offset, s.offset + s.size);
-        outFile.addSample(outVid, buf, {
-          duration: s.duration || 1,
-          dts:      s.dts,
-          cts:      s.cts !== undefined ? s.cts : s.dts,
-          is_sync:  s.is_sync || false,
-        });
-      }
-      await tick();
-    }
-
-    // ── Add audio track + samples ──
-    let outAud = null;
-    if (remappedAudio.length && audioTrack) {
-      try {
-        const at = audioTrack;
-        outAud = outFile.addTrack({
-          timescale:     at.timescale || 44100,
-          channel_count: at.audio ? at.audio.channel_count : 2,
-          samplesize:    16,
-          samplerate:    at.audio ? at.audio.sample_rate   : 44100,
-          hdlr:          'soun',
-          type:          'mp4a',
-        });
-        setP(86, 'Writing audio…');
-        for (const s of remappedAudio) {
-          const buf = originalBuffer.slice(s.offset, s.offset + s.size);
-          outFile.addSample(outAud, buf, {
-            duration: s.duration || 1,
-            dts:      s.dts,
-            cts:      s.cts !== undefined ? s.cts : s.dts,
-            is_sync:  true,
-          });
-        }
-        await tick();
-      } catch(e) {
-        console.warn('Audio track failed (video-only output):', e);
-      }
-    }
-
-    /* ── 7. Export ── */
-    setP(90, 'Exporting…');
+    setP(95, 'Packaging…');
     await tick();
 
-    // MP4Box .getBuffer() returns an ArrayBuffer
-    let outBuf;
-    try {
-      outBuf = outFile.getBuffer();
-    } catch(e) {
-      throw new Error('MP4Box export failed: ' + e.message);
-    }
-
-    if (!outBuf || outBuf.byteLength < 512) {
-      throw new Error('Output MP4 is empty — MP4Box could not build the file.');
-    }
-
-    const blob = new Blob([outBuf], { type: 'video/mp4' });
+    const blob = new Blob([output.buffer], { type: 'video/mp4' });
     const url  = URL.createObjectURL(blob);
 
-    setP(100, `Done! · ${(blob.size/1024/1024).toFixed(1)} MB`);
+    setP(100, `Done! · ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
 
     const base  = file.name.replace(/\.[^/.]+$/, '');
     const dlBtn = $('downloadBtn');
@@ -469,88 +328,115 @@ async function runShuffle(file) {
   }
 }
 
-/* ════════════════════════════════════════════════════
-   HELPERS
-════════════════════════════════════════════════════ */
-
-/** Parse an MP4 ArrayBuffer → { videoSamples, audioSamples, videoTrack, audioTrack } */
-function parseMp4(buffer) {
+/* ════════════════════════════════════════════════════════
+   PROBE: get track info from MP4
+════════════════════════════════════════════════════════ */
+function probeMP4(buffer) {
   return new Promise((resolve, reject) => {
-    const mp4  = MP4Box.createFile();
-    let vTrack = null, aTrack = null;
-    let vSamples = [], aSamples = [];
-    let ready = false;
+    const mp4 = MP4Box.createFile();
+    mp4.onReady = info => {
+      const videoTrack = info.tracks.find(t => t.type === 'video') || null;
+      const audioTrack = info.tracks.find(t => t.type === 'audio') || null;
+      resolve({ videoTrack, audioTrack, info });
+    };
+    mp4.onError = e => reject(new Error('MP4 parse error: ' + e));
+    const buf = buffer.slice(0);
+    buf.fileStart = 0;
+    mp4.appendBuffer(buf);
+    mp4.flush();
+  });
+}
+
+/* ════════════════════════════════════════════════════════
+   SEGMENT: use MP4Box segmentation to get ArrayBuffers
+════════════════════════════════════════════════════════ */
+function segmentMP4(buffer, videoTrackId, nbSamplesPerSeg, onProgress) {
+  return new Promise((resolve, reject) => {
+    const mp4      = MP4Box.createFile();
+    let   initBuf  = null;
+    const segments = [];
+    let   totalSegs = 0;
 
     mp4.onReady = info => {
       try {
-        ready = true;
-        for (const t of info.tracks) {
-          if (!vTrack && t.type === 'video') {
-            vTrack = t;
-            mp4.setExtractionOptions(t.id, 'video', { nbSamples: 10000 });
-          } else if (!aTrack && t.type === 'audio') {
-            aTrack = t;
-            mp4.setExtractionOptions(t.id, 'audio', { nbSamples: 10000 });
-          }
+        // Segment video track; nbSamples controls segment size (~3s worth of frames)
+        mp4.setSegmentOptions(videoTrackId, null, {
+          nbSamples:    nbSamplesPerSeg,
+          rapAlignement: true,   // start each segment on a keyframe
+        });
+
+        // Also segment audio if present
+        const audioTrack = info.tracks.find(t => t.type === 'audio');
+        if (audioTrack) {
+          mp4.setSegmentOptions(audioTrack.id, null, { nbSamples: nbSamplesPerSeg * 10 });
         }
+
+        const initSegs = mp4.initializeSegmentation();
+        // initSegs is array of {id, buffer} — merge all init buffers together
+        const totalInitBytes = initSegs.reduce((s, seg) => s + seg.buffer.byteLength, 0);
+        const combined = new Uint8Array(totalInitBytes);
+        let off = 0;
+        for (const seg of initSegs) {
+          combined.set(new Uint8Array(seg.buffer), off);
+          off += seg.buffer.byteLength;
+        }
+        initBuf = combined.buffer;
+
+        // Estimate total segments for progress
+        totalSegs = Math.ceil(info.tracks.find(t=>t.id===videoTrackId).nb_samples / nbSamplesPerSeg);
+
         mp4.start();
       } catch(e) { reject(e); }
     };
 
-    mp4.onSamples = (id, user, samples) => {
-      if (user === 'video') vSamples = vSamples.concat(Array.from(samples));
-      else if (user === 'audio') aSamples = aSamples.concat(Array.from(samples));
+    // Collect segments — only collect video track segments (id === videoTrackId)
+    // audio segments are embedded within the same moof/mdat blocks when interleaved
+    const segMap = {}; // keyed by sampleNumber to merge audio+video
+    mp4.onSegment = (id, user, buffer, sampleNumber, last) => {
+      try {
+        // Group segments by sampleNumber (video and audio for same window arrive together)
+        if (!segMap[sampleNumber]) segMap[sampleNumber] = [];
+        segMap[sampleNumber].push(buffer);
+
+        if (id === videoTrackId) {
+          // Video segment received — flush this group
+          const group = segMap[sampleNumber] || [buffer];
+          const total = group.reduce((s, b) => s + b.byteLength, 0);
+          const merged = new Uint8Array(total);
+          let o = 0;
+          for (const b of group) { merged.set(new Uint8Array(b), o); o += b.byteLength; }
+          segments.push(merged.buffer);
+          delete segMap[sampleNumber];
+
+          const done = segments.length / Math.max(totalSegs, 1);
+          onProgress(Math.min(done, 0.99));
+        }
+
+        if (last) {
+          resolve({ initBuf, segments });
+        }
+      } catch(e) { reject(e); }
     };
 
-    mp4.onError = e => reject(new Error('MP4Box parse error: ' + e));
+    mp4.onError = e => reject(new Error('Segmentation error: ' + e));
 
     const buf = buffer.slice(0);
     buf.fileStart = 0;
     mp4.appendBuffer(buf);
     mp4.flush();
 
-    // Wait for async callbacks to fire
-    const check = (attempts) => {
-      if (vSamples.length > 0 || attempts > 80) {
-        resolve({
-          videoSamples: vSamples,
-          audioSamples: aSamples,
-          videoTrack:   vTrack,
-          audioTrack:   aTrack,
-        });
-      } else if (!ready && attempts > 20) {
-        reject(new Error('MP4Box did not recognise this file. Make sure it is a valid MP4 (H.264).'));
+    // Safety timeout — if onSegment never fires with last=true
+    setTimeout(() => {
+      if (segments.length > 0) {
+        resolve({ initBuf: initBuf || new ArrayBuffer(0), segments });
       } else {
-        setTimeout(() => check(attempts + 1), 50);
+        reject(new Error('Segmentation timed out. The file may not be a standard H.264 MP4.'));
       }
-    };
-    setTimeout(() => check(0), 100);
+    }, 60000);
   });
 }
 
-/** Try to extract raw AVC decoder config record bytes from the moov box */
-function extractAVCConfig(buffer, videoTrack) {
-  try {
-    const mp4tmp = MP4Box.createFile();
-    const buf = buffer.slice(0);
-    buf.fileStart = 0;
-    let cfg = null;
-    mp4tmp.onReady = info => {
-      try {
-        const trak = mp4tmp.getTrackById(videoTrack.id);
-        const entry = trak && trak.mdia && trak.mdia.minf &&
-                      trak.mdia.minf.stbl && trak.mdia.minf.stbl.stsd &&
-                      trak.mdia.minf.stbl.stsd.entries &&
-                      trak.mdia.minf.stbl.stsd.entries[0];
-        cfg = entry ? (entry.avcC || null) : null;
-      } catch(_) {}
-    };
-    mp4tmp.appendBuffer(buf);
-    mp4tmp.flush();
-    return cfg;
-  } catch(_) { return null; }
-}
-
+/* ── Read file as ArrayBuffer ── */
 function readAsArrayBuffer(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();

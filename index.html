@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Shuffler</title>
+    <title>Video Shuffler | SAMMY</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
         body {
             background: linear-gradient(135deg, #ff9a44 0%, #fc6076 100%);
             height: 100vh;
@@ -18,18 +17,18 @@
             font-family: 'Inter', sans-serif;
             overflow: hidden;
         }
-
         .branding {
             position: absolute;
             top: 20px;
             right: 30px;
             text-align: right;
-            pointer-events: none;
+            z-index: 10;
         }
         .made-by { font-family: 'Inter', sans-serif; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.9; }
         .sammy { font-family: 'Bebas Neue', sans-serif; font-size: 28px; display: block; line-height: 1; }
 
-        .container { text-align: center; width: 100%; max-width: 500px; padding: 20px; }
+        .page { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 500px; text-align: center; }
+        .page.active { display: flex; }
 
         button {
             background: white;
@@ -43,42 +42,29 @@
             transition: all 0.3s ease;
             box-shadow: 0 10px 20px rgba(0,0,0,0.1);
         }
-        button:hover { transform: translateY(-3px); box-shadow: 0 15px 25px rgba(0,0,0,0.2); }
-        
-        .page { display: none; flex-direction: column; align-items: center; width: 100%; }
-        .page.active { display: flex; }
+        button:hover { transform: scale(1.05); }
 
         .upload-box {
             border: 2px dashed rgba(255,255,255,0.7);
-            padding: 40px;
+            padding: 60px 20px;
             border-radius: 20px;
             cursor: pointer;
-            width: 80%;
+            width: 100%;
             margin-top: 20px;
-            transition: background 0.3s;
         }
-        .upload-box:hover { background: rgba(255,255,255,0.1); }
         input[type="file"] { display: none; }
 
-        /* PROGRESS BAR STYLES */
         .progress-container {
-            width: 80%;
-            height: 12px;
+            width: 100%;
+            height: 10px;
             background: rgba(255, 255, 255, 0.2);
             border-radius: 10px;
             margin: 20px 0;
+            display: none;
             overflow: hidden;
-            display: none; /* Hidden until processing starts */
-            border: 1px solid rgba(255,255,255,0.3);
         }
-        #progressBar {
-            width: 0%;
-            height: 100%;
-            background: white;
-            transition: width 0.3s ease;
-        }
-
-        #status { font-size: 14px; margin-bottom: 10px; font-weight: 600; }
+        #progressBar { width: 0%; height: 100%; background: white; transition: width 0.2s; }
+        #status { font-size: 14px; margin-top: 10px; opacity: 0.9; }
     </style>
 </head>
 <body>
@@ -95,23 +81,23 @@
 
     <!-- Page 2 -->
     <div id="page2" class="page">
-        <h2 style="font-family: 'Bebas Neue'; font-size: 40px; letter-spacing: 1px;">Upload Video</h2>
+        <h2 style="font-family: 'Bebas Neue'; font-size: 45px;">Upload Video</h2>
         
         <label class="upload-box" id="dropZone" for="videoInput">
-            <span>Click to select Video</span>
+            <span style="font-weight: bold;">SELECT VIDEO FILE</span>
+            <p style="font-size: 12px; margin-top: 10px; opacity: 0.8;">(Original Quality Maintained)</p>
         </label>
         <input type="file" id="videoInput" accept="video/*">
         
-        <div id="processingArea" style="width: 100%; display: flex; flex-direction: column; align-items: center; margin-top: 20px;">
-            <div id="status">Ready...</div>
-            <div class="progress-container" id="pContainer">
-                <div id="progressBar"></div>
-            </div>
+        <div class="progress-container" id="pContainer">
+            <div id="progressBar"></div>
         </div>
+        <div id="status"></div>
 
-        <button id="downloadBtn" style="display: none;">Download Result</button>
+        <button id="downloadBtn" style="display: none; margin-top: 20px;">Download Shuffled Video</button>
     </div>
 
+    <!-- Scripting -->
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.umd.js"></script>
     <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
     
@@ -130,88 +116,76 @@
         const progressBar = document.getElementById('progressBar');
         const pContainer = document.getElementById('pContainer');
         const downloadBtn = document.getElementById('downloadBtn');
-        const dropZone = document.getElementById('dropZone');
 
         videoInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            // Hide upload UI, show Progress UI
-            dropZone.style.display = 'none';
-            pContainer.style.display = 'block';
-            status.innerText = "Loading Engine...";
+            // CHECK FOR CROSS-ORIGIN ISOLATION
+            if (!window.crossOriginIsolated) {
+                alert("SECURITY ERROR: This app requires a secure server environment. It cannot run by just double-clicking the file. Please use 'Live Server' in VS Code or host it on Vercel/Netlify.");
+                return;
+            }
 
-            if (!ffmpeg) {
-                ffmpeg = new FFmpeg();
+            try {
+                document.getElementById('dropZone').style.display = 'none';
+                pContainer.style.display = 'block';
+                status.innerText = "Initializing Engine...";
+
+                if (!ffmpeg) {
+                    ffmpeg = new FFmpeg();
+                    ffmpeg.on('progress', ({ progress }) => {
+                        progressBar.style.width = Math.round(progress * 100) + '%';
+                    });
+
+                    await ffmpeg.load({
+                        coreURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js`, 'text/javascript'),
+                        wasmURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`, 'application/wasm'),
+                    });
+                }
+
+                status.innerText = "Analyzing & Cutting (5s segments)...";
+                await ffmpeg.writeFile('input', await fetchFile(file));
+
+                // Command to segment video without re-encoding (-c copy)
+                await ffmpeg.exec(['-i', 'input', '-f', 'segment', '-segment_time', '5', '-c', 'copy', '-reset_timestamps', '1', 'out%d.mp4']);
+
+                const files = await ffmpeg.listDir('.');
+                let segments = files.filter(f => f.name.startsWith('out') && f.name.endsWith('.mp4')).map(f => f.name);
+
+                status.innerText = `Shuffling ${segments.length} segments...`;
                 
-                // Track Progress
-                ffmpeg.on('progress', ({ progress }) => {
-                    // progress is a value between 0 and 1
-                    const percent = Math.round(progress * 100);
-                    progressBar.style.width = percent + '%';
-                });
+                // Shuffle
+                for (let i = segments.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [segments[i], segments[j]] = [segments[j], segments[i]];
+                }
 
-                await ffmpeg.load({
-                    coreURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js`, 'text/javascript'),
-                    wasmURL: await toBlobURL(`https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm`, 'application/wasm'),
-                });
+                // Create Concat List
+                const list = segments.map(s => `file '${s}'`).join('\n');
+                await ffmpeg.writeFile('list.txt', list);
+
+                status.innerText = "Joining segments together...";
+                await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'final.mp4']);
+
+                status.innerText = "Success! Ready to Download.";
+                progressBar.style.width = '100%';
+
+                const data = await ffmpeg.readFile('final.mp4');
+                const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'shuffled_by_sammy.mp4';
+                    a.click();
+                };
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error: " + err.message;
             }
-
-            // Start Processing
-            status.innerText = "Step 1/2: Splitting into 5s parts...";
-            await ffmpeg.writeFile('input_video', await fetchFile(file));
-
-            // Execute Split
-            await ffmpeg.exec([
-                '-i', 'input_video', 
-                '-f', 'segment', 
-                '-segment_time', '5', 
-                '-c', 'copy', 
-                '-reset_timestamps', '1',
-                'out%d.mp4'
-            ]);
-
-            // Reset bar for next step
-            progressBar.style.width = '0%';
-            status.innerText = "Step 2/2: Shuffling and Re-joining...";
-
-            const files = await ffmpeg.listDir('.');
-            let segments = files
-                .filter(f => f.name.startsWith('out') && f.name.endsWith('.mp4'))
-                .map(f => f.name);
-
-            // Fisher-Yates Shuffle
-            for (let i = segments.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [segments[i], segments[j]] = [segments[j], segments[i]];
-            }
-
-            const concatContent = segments.map(s => `file '${s}'`).join('\n');
-            await ffmpeg.writeFile('list.txt', concatContent);
-
-            // Execute Join
-            await ffmpeg.exec([
-                '-f', 'concat', 
-                '-safe', '0', 
-                '-i', 'list.txt', 
-                '-c', 'copy', 
-                'final.mp4'
-            ]);
-
-            status.innerText = "Complete!";
-            progressBar.style.width = '100%';
-            
-            const data = await ffmpeg.readFile('final.mp4');
-            const url = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-            
-            pContainer.style.display = 'none';
-            downloadBtn.style.display = 'block';
-            downloadBtn.onclick = () => {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'shuffled_video.mp4';
-                a.click();
-            };
         });
     </script>
 </body>

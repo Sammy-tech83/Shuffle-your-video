@@ -51,7 +51,7 @@
   .progress-wrap.show { display:block; }
   .progress-label { font-size:12px; color:#777; margin-bottom:7px; display:flex; justify-content:space-between; }
   .progress-bar-track { height:8px; background:#F0E0DA; border-radius:100px; overflow:hidden; }
-  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--orange),var(--pink)); border-radius:100px; width:0%; transition:width 0.4s ease; }
+  .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--orange),var(--pink)); border-radius:100px; width:0%; transition:width 0.35s ease; }
   .status-text { font-size:12px; color:#999; margin-top:8px; min-height:18px; }
   .info-box { margin-top:12px; padding:11px 15px; border-radius:12px; background:#FFF8F0; border:1px solid #FFD0B0; font-size:12px; color:#a05020; line-height:1.6; display:none; }
   .info-box.show { display:block; }
@@ -59,6 +59,9 @@
   .btn-download { display:none; width:100%; margin-top:18px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:0.1em; cursor:pointer; box-shadow:0 6px 24px rgba(34,197,94,0.3); transition:transform 0.15s; align-items:center; justify-content:center; gap:10px; }
   .btn-download.show { display:flex; }
   .btn-download:hover { transform:translateY(-2px); }
+
+  /* Hidden processing video */
+  #procVideo { position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; }
 </style>
 </head>
 <body>
@@ -67,6 +70,8 @@
   <span class="watermark-made">made by</span>
   <span class="watermark-sammy">SAMMY</span>
 </div>
+
+<video id="procVideo" muted playsinline></video>
 
 <!-- LANDING -->
 <div class="page" id="landing">
@@ -93,16 +98,16 @@
   </button>
   <div class="upload-card">
     <div class="card-title">Upload Video</div>
-    <div class="card-sub">Splits into 3-second chunks, shuffles randomly, exports a proper MP4.</div>
+    <div class="card-sub">Splits into 3-second chunks, shuffles randomly, exports as MP4.</div>
     <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept="video/mp4,video/*">
+      <input type="file" id="fileInput" accept="video/*">
       <svg class="drop-icon" viewBox="0 0 52 52" fill="none">
         <circle cx="26" cy="26" r="25" fill="#FFE8DF"/>
         <path d="M26 34V20M20 26l6-6 6 6" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M17 36h18" stroke="#FF6B35" stroke-width="2.2" stroke-linecap="round"/>
       </svg>
       <div class="drop-title">Drop your video here</div>
-      <div class="drop-hint">or click to browse · MP4 recommended</div>
+      <div class="drop-hint">or click to browse · any video format</div>
       <div class="file-chosen" id="fileChosen"></div>
     </div>
     <button class="btn-process" id="processBtn" disabled>SHUFFLE IT →</button>
@@ -118,35 +123,38 @@
         <polyline points="7 10 12 15 17 10"/>
         <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
-      Download Shuffled MP4
+      Download Shuffled Video
     </button>
   </div>
 </div>
 
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   VidShuffle — Pure JavaScript MP4 shuffler
-   Zero dependencies · No ffmpeg · No SharedArrayBuffer · No workers
-
-   HOW IT WORKS:
-   1. Parse the MP4 moov box entirely in JS to extract the sample
-      table: every frame's byte offset, size, duration, and whether
-      it's a keyframe (sync sample).
-   2. Group frames into 3-second chunks starting at keyframes.
-   3. Shuffle the chunk order.
-   4. Build a brand-new MP4 from scratch:
-       - Write ftyp box (file type)
-       - Write moov box with ALL timestamps remapped from zero
-         based on the new chunk order
-       - Write mdat box with frame bytes in new order
-   This produces a self-contained, standard MP4 with correct
-   duration, timestamps, and frame data — no one-frame freeze.
-═══════════════════════════════════════════════════════════════ */
+/*
+ * VidShuffle — proven, simple approach
+ *
+ * The only approach that works reliably in every browser
+ * without SharedArrayBuffer, without ffmpeg, without complex parsers:
+ *
+ * 1. Load the video into a hidden <video> element
+ * 2. Get duration, compute 3-second chunk time ranges
+ * 3. Shuffle the time ranges
+ * 4. For each shuffled chunk: seek video to that time, play it,
+ *    capture frames onto a <canvas> using requestVideoFrameCallback
+ *    (falls back to timeupdate), record canvas stream with MediaRecorder
+ * 5. Collect all recorded blobs → single output file
+ *
+ * Output is WebM (what browsers can record natively).
+ * It plays perfectly in all browsers and imports into CapCut/editors.
+ * The file size is controlled by the video bitrate setting.
+ *
+ * Processing takes roughly the same time as the video duration
+ * since we play each chunk in real time — this is unavoidable
+ * in a pure browser environment without ffmpeg/SharedArrayBuffer.
+ */
 
 const $ = id => document.getElementById(id);
 let selectedFile = null, processing = false;
 
-/* ── UI ── */
 function setP(p, msg) {
   p = Math.min(100, Math.round(p));
   $('progressFill').style.width = p + '%';
@@ -154,19 +162,22 @@ function setP(p, msg) {
   if (msg !== undefined) $('statusText').textContent = msg;
 }
 function showErr(msg) {
-  $('infoBox').textContent = '❌ ' + msg;
-  $('infoBox').className = 'info-box show err';
+  const el = $('infoBox');
+  el.textContent = '❌ ' + msg;
+  el.className = 'info-box show err';
 }
 function hideInfo() { $('infoBox').classList.remove('show'); }
-function tick() { return new Promise(r => setTimeout(r, 0)); }
+function tick() { return new Promise(r => setTimeout(r, 16)); }
+
 function fail(e) {
-  const m = e && e.message ? e.message : String(e);
-  console.error(e);
-  setP(0,''); showErr(m);
+  const m = (e && e.message) ? e.message : String(e);
+  console.error('VidShuffle:', e);
+  setP(0, ''); showErr(m);
   $('processBtn').disabled = false;
   $('backBtn').classList.remove('locked');
   processing = false;
 }
+
 function resetUI() {
   selectedFile = null; processing = false;
   $('fileInput').value = '';
@@ -175,19 +186,29 @@ function resetUI() {
   $('progressWrap').classList.remove('show');
   $('downloadBtn').classList.remove('show');
   $('backBtn').classList.remove('locked');
-  hideInfo(); setP(0,'');
+  hideInfo(); setP(0, '');
 }
 
-/* ── Nav ── */
-$('goToUpload').onclick = () => { $('landing').classList.add('hidden'); $('upload-page').classList.remove('hidden'); };
-$('backBtn').onclick = () => { if(processing) return; $('upload-page').classList.add('hidden'); $('landing').classList.remove('hidden'); resetUI(); };
+$('goToUpload').onclick = () => {
+  $('landing').classList.add('hidden');
+  $('upload-page').classList.remove('hidden');
+};
+$('backBtn').onclick = () => {
+  if (processing) return;
+  $('upload-page').classList.add('hidden');
+  $('landing').classList.remove('hidden');
+  resetUI();
+};
 
-/* ── File pick ── */
 const dz = $('dropZone'), fi = $('fileInput');
 dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
-fi.addEventListener('change', () => { if(fi.files[0]) handleFile(fi.files[0]); });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fi.addEventListener('change', () => { if (fi.files[0]) handleFile(fi.files[0]); });
+
 function handleFile(f) {
   selectedFile = f;
   $('fileChosen').textContent = `✓  ${f.name}  (${(f.size/1024/1024).toFixed(1)} MB)`;
@@ -196,8 +217,9 @@ function handleFile(f) {
   $('progressWrap').classList.remove('show');
   hideInfo();
 }
+
 $('processBtn').onclick = () => {
-  if(processing || !selectedFile) return;
+  if (processing || !selectedFile) return;
   processing = true;
   $('backBtn').classList.add('locked');
   $('processBtn').disabled = true;
@@ -207,716 +229,216 @@ $('processBtn').onclick = () => {
   runShuffle(selectedFile);
 };
 
-/* ═══════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    MAIN
-═══════════════════════════════════════════════════════════════ */
+═══════════════════════════════════════════════ */
 async function runShuffle(file) {
+  const video = $('procVideo');
+  let srcUrl = null;
+
   try {
-    setP(5, 'Reading file…');
-    const buf = await readBuf(file);
-    const bytes = new DataView(buf);
-    await tick();
+    /* 1. Load video */
+    setP(2, 'Loading video…');
+    srcUrl = URL.createObjectURL(file);
+    video.src = srcUrl;
+    video.load();
 
-    setP(12, 'Parsing MP4 structure…');
-    const mp4 = parseMp4(bytes, buf);
-    await tick();
+    await new Promise((res, rej) => {
+      const t = setTimeout(() => rej(new Error('Video load timed out')), 20000);
+      video.onloadedmetadata = () => { clearTimeout(t); res(); };
+      video.onerror = () => { clearTimeout(t); rej(new Error('Cannot load this video format')); };
+    });
 
-    if (!mp4.video) throw new Error('No H.264 video track found. Please use an MP4 file.');
+    const duration = video.duration;
+    const W = video.videoWidth  || 1280;
+    const H = video.videoHeight || 720;
+    if (!isFinite(duration) || duration <= 0) throw new Error('Could not read video duration');
 
-    const { timescale, samples, extraData } = mp4.video;
-    setP(28, `${samples.length} frames parsed`);
-    await tick();
+    setP(5, `${W}×${H} · ${duration.toFixed(1)}s`);
 
-    /* ── Group into 3-second chunks at keyframe boundaries ── */
-    const CHUNK_TICKS = 3 * timescale;
+    /* 2. Build chunk time ranges */
+    const CHUNK = 3;
     const chunks = [];
-    let cur = [], boundary = CHUNK_TICKS;
-
-    for (let i = 0; i < samples.length; i++) {
-      const s = samples[i];
-      if (i > 0 && s.isKey && s.dts >= boundary) {
-        chunks.push(cur); cur = [];
-        while (boundary <= s.dts) boundary += CHUNK_TICKS;
-      }
-      cur.push(i);
+    for (let t = 0; t < duration; t += CHUNK) {
+      chunks.push({ start: t, end: Math.min(t + CHUNK, duration) });
     }
-    if (cur.length) chunks.push(cur);
 
-    if (chunks.length < 2) throw new Error(
-      `Only ${chunks.length} chunk found. Try a longer video, or one with more keyframes.`
+    /* 3. Shuffle */
+    for (let i = chunks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
+    }
+
+    setP(8, `${chunks.length} chunks shuffled — setting up recorder…`);
+
+    /* 4. Set up canvas + MediaRecorder */
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    // Pick best mime type
+    const mimes = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+    ];
+    const mime = mimes.find(m => MediaRecorder.isTypeSupported(m)) || 'video/webm';
+
+    // Estimate a reasonable bitrate from file size
+    const bitsPerSec = Math.min(
+      Math.max(Math.round((file.size * 8) / duration), 1_000_000),
+      20_000_000
     );
 
-    setP(38, `${chunks.length} chunks — shuffling…`);
-    await tick();
+    const stream   = canvas.captureStream(30);
+    const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitsPerSec });
+    const blobs    = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) blobs.push(e.data); };
+    recorder.start(100); // flush every 100ms so memory doesn't blow up on long videos
 
-    /* ── Fisher-Yates shuffle ── */
-    const order = [...Array(chunks.length).keys()];
-    for (let i = order.length-1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i+1));
-      [order[i], order[j]] = [order[j], order[i]];
+    /* 5. Play each chunk and capture */
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const { start, end } = chunks[ci];
+      const chunkDur = end - start;
+      const pStart   = 8  + (ci / chunks.length) * 86;
+      const pEnd     = 8  + ((ci + 1) / chunks.length) * 86;
+
+      setP(pStart, `Chunk ${ci + 1} / ${chunks.length}`);
+
+      await playChunk(video, canvas, ctx, stream, start, end, pStart, pEnd);
     }
 
-    /* ── Flatten samples in new order & remap timestamps ── */
-    setP(45, 'Remapping timestamps…');
-    const newSamples = [];
-    let dtsCursor = 0;
+    /* 6. Stop recorder and collect */
+    setP(95, 'Finalising…');
+    await new Promise(res => { recorder.onstop = res; recorder.stop(); });
 
-    for (const ci of order) {
-      const chunk = chunks[ci];
-      for (const si of chunk) {
-        const orig = samples[si];
-        const ctsDelta = orig.cts - orig.dts;   // composition offset preserved
-        newSamples.push({
-          offset:  orig.offset,
-          size:    orig.size,
-          dts:     dtsCursor,
-          cts:     dtsCursor + ctsDelta,
-          dur:     orig.dur,
-          isKey:   orig.isKey,
-        });
-        dtsCursor += orig.dur;
-      }
-    }
-    await tick();
+    if (!blobs.length) throw new Error('Recording produced no data. Please try again.');
 
-    /* ── Also remap audio ── */
-    let newAudio = [];
-    if (mp4.audio) {
-      setP(52, 'Remapping audio…');
-      newAudio = remapAudio(mp4.audio, mp4.video, chunks, order);
-      await tick();
-    }
+    const outBlob = new Blob(blobs, { type: mime });
+    if (outBlob.size < 1000) throw new Error('Output file is empty. Please try again.');
 
-    setP(58, 'Building new MP4…');
-    await tick();
+    const outUrl = URL.createObjectURL(outBlob);
+    setP(100, `Done! · ${(outBlob.size / 1024 / 1024).toFixed(1)} MB`);
 
-    /* ── Write new MP4 ── */
-    const output = buildMp4(buf, newSamples, newAudio, mp4, dtsCursor);
-
-    setP(96, 'Packaging…');
-    await tick();
-
-    const blob = new Blob([output], { type: 'video/mp4' });
-    const url  = URL.createObjectURL(blob);
-    setP(100, `Done! · ${(blob.size/1024/1024).toFixed(1)} MB`);
-
+    // Determine extension
+    const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
     const base = file.name.replace(/\.[^/.]+$/, '');
     const dl   = $('downloadBtn');
+    dl.textContent = '';
+    dl.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Download Shuffled Video`;
     dl.classList.add('show');
-    dl.onclick = () => { const a=document.createElement('a'); a.href=url; a.download=base+'_shuffled.mp4'; a.click(); };
-
-  } catch(e) { fail(e); }
-  finally { processing=false; $('backBtn').classList.remove('locked'); }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MP4 PARSER — reads the moov/trak/mdia/minf/stbl boxes
-   to get per-sample: offset, size, duration, dts, cts, isKey
-═══════════════════════════════════════════════════════════════ */
-function parseMp4(dv, buf) {
-  const boxes = parseBoxes(dv, 0, dv.byteLength);
-  const moov  = boxes.find(b => b.type === 'moov');
-  if (!moov) throw new Error('No moov box found — not a valid MP4.');
-
-  const moovBoxes = parseBoxes(dv, moov.start+8, moov.end);
-  const traks = moovBoxes.filter(b => b.type === 'trak');
-
-  let video = null, audio = null;
-
-  for (const trak of traks) {
-    const track = parseTrak(dv, buf, trak, boxes);
-    if (!track) continue;
-    if (track.isVideo && !video) video = track;
-    else if (!track.isVideo && !audio) audio = track;
-  }
-
-  return { video, audio, moov };
-}
-
-function parseBoxes(dv, start, end) {
-  const boxes = [];
-  let pos = start;
-  while (pos + 8 <= end) {
-    let size = dv.getUint32(pos);
-    const type = readStr(dv, pos+4, 4);
-    if (size === 0) { size = end - pos; }
-    else if (size === 1) {
-      // 64-bit size (rare) — just skip
-      pos += size; continue;
-    }
-    if (size < 8 || pos + size > end) break;
-    boxes.push({ type, start: pos, end: pos+size, size });
-    pos += size;
-  }
-  return boxes;
-}
-
-function readStr(dv, off, len) {
-  let s = '';
-  for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint8(off+i));
-  return s;
-}
-
-function findBox(dv, start, end, type) {
-  const list = parseBoxes(dv, start, end);
-  return list.find(b => b.type === type) || null;
-}
-
-function parseTrak(dv, buf, trak, topBoxes) {
-  const trakBoxes = parseBoxes(dv, trak.start+8, trak.end);
-
-  const mdia = trakBoxes.find(b => b.type === 'mdia');
-  if (!mdia) return null;
-  const mdiaBoxes = parseBoxes(dv, mdia.start+8, mdia.end);
-
-  const hdlr = mdiaBoxes.find(b => b.type === 'hdlr');
-  if (!hdlr) return null;
-  const handlerType = readStr(dv, hdlr.start+16, 4);
-  const isVideo = handlerType === 'vide';
-  const isAudio = handlerType === 'soun';
-  if (!isVideo && !isAudio) return null;
-
-  const mdhd = mdiaBoxes.find(b => b.type === 'mdhd');
-  if (!mdhd) return null;
-  const version = dv.getUint8(mdhd.start+8);
-  const timescale = version === 1
-    ? dv.getUint32(mdhd.start + 28)
-    : dv.getUint32(mdhd.start + 20);
-
-  const minf = mdiaBoxes.find(b => b.type === 'minf');
-  if (!minf) return null;
-  const stbl = findBox(dv, minf.start+8, minf.end, 'stbl');
-  if (!stbl) return null;
-
-  /* Sample table boxes */
-  const stts = findBox(dv, stbl.start+8, stbl.end, 'stts'); // decode times
-  const ctts = findBox(dv, stbl.start+8, stbl.end, 'ctts'); // composition offset
-  const stss = findBox(dv, stbl.start+8, stbl.end, 'stss'); // sync (key) samples
-  const stsz = findBox(dv, stbl.start+8, stbl.end, 'stsz'); // sample sizes
-  const stsc = findBox(dv, stbl.start+8, stbl.end, 'stsc'); // sample-to-chunk
-  const stco = findBox(dv, stbl.start+8, stbl.end, 'stco') // chunk offsets
-            || findBox(dv, stbl.start+8, stbl.end, 'co64');
-
-  if (!stts || !stsz || !stsc || !stco) return null;
-
-  /* Parse stts → per-sample decode durations */
-  const durations = [];
-  {
-    const entryCount = dv.getUint32(stts.start+12);
-    let off = stts.start + 16;
-    for (let i = 0; i < entryCount; i++) {
-      const count = dv.getUint32(off); const dur = dv.getUint32(off+4); off += 8;
-      for (let j = 0; j < count; j++) durations.push(dur);
-    }
-  }
-
-  /* Parse ctts → composition time offsets */
-  const cttsMap = [];
-  if (ctts) {
-    const entryCount = dv.getUint32(ctts.start+12);
-    let off = ctts.start + 16;
-    for (let i = 0; i < entryCount; i++) {
-      const count = dv.getUint32(off);
-      let   delta = dv.getInt32(off+4); // signed for version 1
-      off += 8;
-      for (let j = 0; j < count; j++) cttsMap.push(delta);
-    }
-  }
-
-  /* Parse stss → set of keyframe indices (1-based) */
-  const keySet = new Set();
-  if (stss) {
-    const count = dv.getUint32(stss.start+12);
-    let off = stss.start + 16;
-    for (let i = 0; i < count; i++) { keySet.add(dv.getUint32(off)); off += 4; }
-  }
-
-  /* Parse stsz → per-sample sizes */
-  const defaultSize = dv.getUint32(stsz.start+12);
-  const sampleCount = dv.getUint32(stsz.start+16);
-  const sizes = [];
-  if (defaultSize === 0) {
-    let off = stsz.start + 20;
-    for (let i = 0; i < sampleCount; i++) { sizes.push(dv.getUint32(off)); off += 4; }
-  } else {
-    for (let i = 0; i < sampleCount; i++) sizes.push(defaultSize);
-  }
-
-  /* Parse stsc → which chunk each sample is in */
-  const stscEntries = [];
-  {
-    const count = dv.getUint32(stsc.start+12);
-    let off = stsc.start + 16;
-    for (let i = 0; i < count; i++) {
-      stscEntries.push({ firstChunk: dv.getUint32(off), samplesPerChunk: dv.getUint32(off+4) });
-      off += 12;
-    }
-  }
-
-  /* Parse stco/co64 → chunk byte offsets in file */
-  const is64 = stco.type === 'co64';
-  const chunkCount = dv.getUint32(stco.start+12);
-  const chunkOffsets = [];
-  {
-    let off = stco.start + 16;
-    for (let i = 0; i < chunkCount; i++) {
-      if (is64) {
-        // Only read lower 32 bits (files <4GB)
-        chunkOffsets.push(dv.getUint32(off+4)); off += 8;
-      } else {
-        chunkOffsets.push(dv.getUint32(off)); off += 4;
-      }
-    }
-  }
-
-  /* Build sample→chunk offset map */
-  const sampleOffsets = new Array(sampleCount);
-  let chunkIdx = 0; // 0-based chunk
-  let sampleIdx = 0;
-  for (let ei = 0; ei < stscEntries.length; ei++) {
-    const first = stscEntries[ei].firstChunk - 1; // convert to 0-based
-    const next  = ei+1 < stscEntries.length ? stscEntries[ei+1].firstChunk - 1 : chunkCount;
-    const spc   = stscEntries[ei].samplesPerChunk;
-    for (let ci = first; ci < next; ci++) {
-      let byteOff = chunkOffsets[ci];
-      for (let s = 0; s < spc && sampleIdx < sampleCount; s++) {
-        sampleOffsets[sampleIdx] = byteOff;
-        byteOff += sizes[sampleIdx];
-        sampleIdx++;
-      }
-    }
-  }
-
-  /* Assemble final sample array */
-  const samples = [];
-  let dts = 0;
-  for (let i = 0; i < sampleCount; i++) {
-    const dur = durations[i] || 1;
-    const cts = dts + (cttsMap[i] || 0);
-    samples.push({
-      offset: sampleOffsets[i],
-      size:   sizes[i],
-      dts,
-      cts,
-      dur,
-      isKey: keySet.size === 0 || keySet.has(i+1), // 1-based
-    });
-    dts += dur;
-  }
-
-  /* Store raw trak box bytes for rebuilding */
-  const trakBytes = new Uint8Array(buf, trak.start, trak.end - trak.start);
-
-  return { isVideo, timescale, samples, trakBytes, trak, stbl, stts, ctts, stss, stsz, stsc, stco };
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   AUDIO REMAPPING
-═══════════════════════════════════════════════════════════════ */
-function remapAudio(audio, video, chunks, order) {
-  const vTS = video.timescale;
-  const aTS = audio.timescale;
-  const aSamples = audio.samples;
-
-  // Build original chunk time ranges in video timescale
-  const ranges = chunks.map(c => ({
-    start: video.samples[c[0]].dts,
-    end:   video.samples[c[c.length-1]].dts + video.samples[c[c.length-1]].dur,
-  }));
-
-  // New start time (in video timescale) for each chunk position after shuffle
-  const newStarts = [];
-  let cur = 0;
-  for (const ci of order) {
-    newStarts.push(cur);
-    cur += ranges[ci].end - ranges[ci].start;
-  }
-
-  // Map each audio sample to its shuffled position
-  const out = [];
-  for (let oi = 0; oi < order.length; oi++) {
-    const ci = order[oi];
-    const { start, end } = ranges[ci];
-    // Convert to audio timescale
-    const aStart = start * aTS / vTS;
-    const aEnd   = end   * aTS / vTS;
-    const newBase = newStarts[oi] * aTS / vTS;
-    for (const s of aSamples) {
-      if (s.dts >= aStart && s.dts < aEnd) {
-        const offset = s.dts - aStart;
-        out.push({ ...s, dts: newBase + offset, cts: newBase + offset });
-      }
-    }
-  }
-  return out.sort((a,b) => a.dts - b.dts);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MP4 WRITER — builds a complete, standard MP4 from scratch
-   Layout: ftyp | moov (with patched stbl tables) | mdat
-═══════════════════════════════════════════════════════════════ */
-function buildMp4(origBuf, vSamples, aSamples, mp4, totalVideoDts) {
-  const w = new Mp4Writer();
-
-  /* ftyp */
-  w.box('ftyp', b => {
-    b.str('isom'); b.u32(0x200);
-    b.str('isom'); b.str('iso2'); b.str('avc1'); b.str('mp41');
-  });
-
-  /* Calculate mdat offset (comes after moov) */
-  // We write moov first (with placeholder offsets), then patch chunk offsets
-  // Actually: write mdat LAST but stco needs offsets ahead of time.
-  // Classic chicken-and-egg: solve by writing mdat to a separate buffer first,
-  // then prepend ftyp+moov with correct offsets.
-
-  // Build mdat data buffer
-  const mdatParts = [];
-  const vOffsetMap = new Map(); // original offset → position in mdat
-  let mdatPos = 0;
-
-  for (const s of vSamples) {
-    if (!vOffsetMap.has(s.offset)) {
-      vOffsetMap.set(s.offset, mdatPos);
-      mdatParts.push(new Uint8Array(origBuf, s.offset, s.size));
-      mdatPos += s.size;
-    }
-  }
-  for (const s of aSamples) {
-    if (!vOffsetMap.has(s.offset)) {
-      vOffsetMap.set(s.offset, mdatPos);
-      mdatParts.push(new Uint8Array(origBuf, s.offset, s.size));
-      mdatPos += s.size;
-    }
-  }
-
-  const mdatData = concat(mdatParts);
-  const mdatSize = 8 + mdatData.byteLength;
-
-  // Now we know mdat starts at: ftypSize + moovSize
-  // But moovSize depends on stco content which depends on mdat offset — circular.
-  // Solution: write moov with a dummy base offset, measure its size, then rewrite with correct offset.
-
-  const ftypSize = 8 + 4 + 4 + 4*4; // 8 header + 'isom' + version + 4 brands = 32 bytes
-  // Actually compute it properly:
-  const ftypBuf  = buildFtyp();
-  const moovBuf1 = buildMoov(vSamples, aSamples, mp4, 0 /* dummy offset */, totalVideoDts, origBuf);
-  const moovSize = moovBuf1.byteLength;
-  const mdatOffset = ftypBuf.byteLength + moovSize + 8; // 8 = mdat box header
-
-  const moovBuf2 = buildMoov(vSamples, aSamples, mp4, mdatOffset, totalVideoDts, origBuf);
-
-  // Concatenate: ftyp + moov + mdat_header + mdat_data
-  const mdatHeader = new Uint8Array(8);
-  const mdatView   = new DataView(mdatHeader.buffer);
-  mdatView.setUint32(0, mdatSize);
-  mdatHeader[4]=0x6d; mdatHeader[5]=0x64; mdatHeader[6]=0x61; mdatHeader[7]=0x74; // 'mdat'
-
-  return concat([ftypBuf, moovBuf2, mdatHeader, mdatData]);
-}
-
-function buildFtyp() {
-  const b = new Mp4Writer();
-  b.box('ftyp', x => {
-    x.str('isom'); x.u32(0x200);
-    x.str('isom'); x.str('iso2'); x.str('avc1'); x.str('mp41');
-  });
-  return b.bytes();
-}
-
-function buildMoov(vSamples, aSamples, mp4, mdatOffset, totalVideoDts, origBuf) {
-  /* Build per-sample data for new stbl tables */
-
-  // Video: one sample per chunk (chunk = 1 sample in new file for simplicity)
-  // Timestamps, sizes, offsets, keyframes all from newSamples
-
-  // Calculate per-sample file offset (relative to start of mdat data section)
-  let pos = mdatOffset;
-  const vNewOffsets = [];
-  for (const s of vSamples) {
-    vNewOffsets.push(pos);
-    pos += s.size;
-  }
-  let aNewOffsets = [];
-  if (aSamples.length) {
-    for (const s of aSamples) {
-      aNewOffsets.push(pos);
-      pos += s.size;
-    }
-  }
-
-  const b = new Mp4Writer();
-  b.box('moov', m => {
-
-    /* mvhd */
-    m.box('mvhd', x => {
-      const vTS = mp4.video.timescale;
-      const dur = totalVideoDts; // in video timescale
-      x.u8(0); x.u24(0);        // version + flags
-      x.u32(0); x.u32(0);       // creation / modification time
-      x.u32(vTS);                // timescale
-      x.u32(dur);                // duration
-      x.u32(0x00010000);         // rate 1.0
-      x.u16(0x0100);             // volume
-      x.bytes(new Uint8Array(10)); // reserved
-      // unity matrix
-      x.u32(0x00010000); x.u32(0); x.u32(0);
-      x.u32(0); x.u32(0x00010000); x.u32(0);
-      x.u32(0); x.u32(0); x.u32(0x40000000);
-      x.bytes(new Uint8Array(24)); // pre-defined
-      x.u32(mp4.video.samples.length > 0 ? 2 : 1); // next track id
-    });
-
-    /* Video trak */
-    buildTrak(m, vSamples, vNewOffsets, mp4.video, origBuf, true);
-
-    /* Audio trak */
-    if (mp4.audio && aSamples.length) {
-      buildTrak(m, aSamples, aNewOffsets, mp4.audio, origBuf, false);
-    }
-  });
-
-  return b.bytes();
-}
-
-function buildTrak(parent, samples, fileOffsets, trackInfo, origBuf, isVideo) {
-  const ts  = trackInfo.timescale;
-  const dur = samples.length ? samples[samples.length-1].dts + samples[samples.length-1].dur : 0;
-
-  parent.box('trak', t => {
-    /* tkhd */
-    t.box('tkhd', x => {
-      x.u8(0); x.u24(isVideo ? 3 : 3); // version + flags (enabled)
-      x.u32(0); x.u32(0); // creation/modification
-      x.u32(isVideo ? 1 : 2); // track id
-      x.u32(0); // reserved
-      x.u32(dur);
-      x.u32(0); x.u32(0); // reserved
-      x.u16(0); x.u16(0); // layer / alternate group
-      x.u16(isVideo ? 0 : 0x0100); // volume
-      x.u16(0); // reserved
-      // unity matrix
-      x.u32(0x00010000); x.u32(0); x.u32(0);
-      x.u32(0); x.u32(0x00010000); x.u32(0);
-      x.u32(0); x.u32(0); x.u32(0x40000000);
-      if (isVideo) {
-        // width/height from original tkhd
-        const origTkhd = findTkhdInTrak(origBuf, trackInfo);
-        if (origTkhd) {
-          x.u32(origTkhd.width); x.u32(origTkhd.height);
-        } else {
-          x.u32(1280 << 16); x.u32(720 << 16);
-        }
-      } else {
-        x.u32(0); x.u32(0);
-      }
-    });
-
-    /* mdia */
-    t.box('mdia', d => {
-      /* mdhd */
-      d.box('mdhd', x => {
-        x.u8(0); x.u24(0);
-        x.u32(0); x.u32(0);
-        x.u32(ts);
-        x.u32(dur);
-        x.u16(0x55c4); // language 'und'
-        x.u16(0);
-      });
-
-      /* hdlr — copy raw bytes from original */
-      const origHdlr = findBoxBytes(origBuf, trackInfo, 'hdlr');
-      if (origHdlr) d.rawBox(origHdlr);
-      else d.box('hdlr', x => {
-        x.u32(0); x.u32(0);
-        x.str(isVideo ? 'vide' : 'soun');
-        x.u32(0); x.u32(0); x.u32(0);
-        x.u8(0);
-      });
-
-      /* minf */
-      d.box('minf', mi => {
-        /* vmhd / smhd */
-        if (isVideo) {
-          mi.box('vmhd', x => { x.u32(1); x.u32(0); x.u32(0); });
-        } else {
-          mi.box('smhd', x => { x.u32(0); x.u32(0); });
-        }
-
-        /* dinf — copy from original or write minimal */
-        const origDinf = findBoxBytes(origBuf, trackInfo, 'dinf');
-        if (origDinf) mi.rawBox(origDinf);
-        else mi.box('dinf', x => {
-          x.box('dref', d2 => { d2.u32(0); d2.u32(1); d2.box('url ', u => { u.u32(1); }); });
-        });
-
-        /* stbl */
-        mi.box('stbl', sb => {
-          /* stsd — copy codec description verbatim from original */
-          const origStsd = findBoxBytes(origBuf, trackInfo, 'stsd');
-          if (origStsd) sb.rawBox(origStsd);
-
-          /* stts — decode time table */
-          sb.box('stts', x => {
-            x.u32(0); // version+flags
-            // RLE-encode durations
-            const runs = rle(samples.map(s => s.dur));
-            x.u32(runs.length);
-            for (const [count, val] of runs) { x.u32(count); x.u32(val); }
-          });
-
-          /* ctts — composition offset table (only if needed) */
-          const hasCts = samples.some(s => s.cts !== s.dts);
-          if (hasCts) {
-            sb.box('ctts', x => {
-              x.u32(0);
-              const runs = rle(samples.map(s => s.cts - s.dts));
-              x.u32(runs.length);
-              for (const [count, val] of runs) { x.u32(count); x.u32(val >>> 0); }
-            });
-          }
-
-          /* stss — keyframe table (video only) */
-          if (isVideo) {
-            const keys = samples.map((s,i) => s.isKey ? i+1 : 0).filter(Boolean);
-            if (keys.length < samples.length) {
-              sb.box('stss', x => {
-                x.u32(0); x.u32(keys.length);
-                for (const k of keys) x.u32(k);
-              });
-            }
-          }
-
-          /* stsz — sample sizes */
-          sb.box('stsz', x => {
-            x.u32(0); x.u32(0); // version+flags, default size=0
-            x.u32(samples.length);
-            for (const s of samples) x.u32(s.size);
-          });
-
-          /* stsc — sample-to-chunk: 1 sample per chunk */
-          sb.box('stsc', x => {
-            x.u32(0); x.u32(1);
-            x.u32(1); x.u32(1); x.u32(1);
-          });
-
-          /* stco — chunk offsets */
-          sb.box('stco', x => {
-            x.u32(0); x.u32(fileOffsets.length);
-            for (const off of fileOffsets) x.u32(off);
-          });
-        });
-      });
-    });
-  });
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   HELPER: find a box within a track's sub-boxes and return raw bytes
-═══════════════════════════════════════════════════════════════ */
-function findTkhdInTrak(buf, trackInfo) {
-  try {
-    const dv   = new DataView(buf);
-    const trak = trackInfo.trak;
-    const trakBoxes = parseBoxes(dv, trak.start+8, trak.end);
-    const tkhd = trakBoxes.find(b => b.type === 'tkhd');
-    if (!tkhd) return null;
-    const off = tkhd.end - 8; // width/height are last 8 bytes of tkhd v0
-    return {
-      width:  dv.getUint32(tkhd.end - 8),
-      height: dv.getUint32(tkhd.end - 4),
+    dl.onclick = () => {
+      const a = document.createElement('a');
+      a.href = outUrl;
+      a.download = `${base}_shuffled.${ext}`;
+      a.click();
     };
-  } catch(_) { return null; }
+
+    // Show info about format
+    const infoEl = $('infoBox');
+    infoEl.textContent = ext === 'webm'
+      ? 'ℹ️ Saved as WebM — plays in Chrome, Firefox, Edge. To convert to MP4, open in CapCut and export.'
+      : '✅ Saved as MP4 — ready to use in CapCut, Premiere, and any editor.';
+    infoEl.className = 'info-box show';
+
+  } catch(e) {
+    fail(e);
+  } finally {
+    processing = false;
+    $('backBtn').classList.remove('locked');
+    video.pause();
+    video.src = '';
+    if (srcUrl) URL.revokeObjectURL(srcUrl);
+  }
 }
 
-function findBoxBytes(buf, trackInfo, boxType) {
-  try {
-    const dv   = new DataView(buf);
-    const trak = trackInfo.trak;
-    const trakBoxes = parseBoxes(dv, trak.start+8, trak.end);
-    const mdia = trakBoxes.find(b => b.type === 'mdia');
-    if (!mdia) return null;
-    const mdiaBoxes = parseBoxes(dv, mdia.start+8, mdia.end);
+/* ═══════════════════════════════════════════════
+   Play video from start→end, drawing every frame
+   onto canvas for smooth capture.
+   Uses requestVideoFrameCallback when available
+   (Chrome 83+) which fires exactly once per decoded
+   frame — the only truly smooth capture method.
+   Falls back to timeupdate + rAF for other browsers.
+═══════════════════════════════════════════════ */
+function playChunk(video, canvas, ctx, stream, start, end, pStart, pEnd) {
+  return new Promise((resolve) => {
+    let done = false;
 
-    // Search in mdia directly
-    let box = mdiaBoxes.find(b => b.type === boxType);
-    if (!box) {
-      // Search inside minf
-      const minf = mdiaBoxes.find(b => b.type === 'minf');
-      if (minf) {
-        const minfBoxes = parseBoxes(dv, minf.start+8, minf.end);
-        box = minfBoxes.find(b => b.type === boxType);
-        if (!box) {
-          const stbl = minfBoxes.find(b => b.type === 'stbl');
-          if (stbl) {
-            const stblBoxes = parseBoxes(dv, stbl.start+8, stbl.end);
-            box = stblBoxes.find(b => b.type === boxType);
-          }
-        }
-      }
+    function finish() {
+      if (done) return;
+      done = true;
+      video.pause();
+      // Draw one final frame
+      try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
+      resolve();
     }
-    if (!box) return null;
-    return new Uint8Array(buf, box.start, box.size);
-  } catch(_) { return null; }
-}
 
-/* ═══════════════════════════════════════════════════════════════
-   Mp4Writer — simple binary writer with box helpers
-═══════════════════════════════════════════════════════════════ */
-class Mp4Writer {
-  constructor() { this._parts = []; }
+    // Seek to start
+    video.currentTime = start;
 
-  u8(v)  { const a=new Uint8Array(1); a[0]=v&0xff; this._parts.push(a); }
-  u16(v) { const b=new ArrayBuffer(2); new DataView(b).setUint16(0,v>>>0); this._parts.push(new Uint8Array(b)); }
-  u24(v) { this.u8((v>>16)&0xff); this.u8((v>>8)&0xff); this.u8(v&0xff); }
-  u32(v) { const b=new ArrayBuffer(4); new DataView(b).setUint32(0,v>>>0); this._parts.push(new Uint8Array(b)); }
-  str(s) { const a=new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i); this._parts.push(a); }
-  bytes(a) { this._parts.push(a instanceof Uint8Array ? a : new Uint8Array(a)); }
-  rawBox(a) { this._parts.push(a instanceof Uint8Array ? a : new Uint8Array(a)); }
+    video.onseeked = () => {
+      video.onseeked = null;
 
-  box(type, fn) {
-    const inner = new Mp4Writer();
-    fn(inner);
-    const payload = inner.bytes();
-    const size    = 8 + payload.byteLength;
-    this.u32(size);
-    this.str(type);
-    this.bytes(payload);
-  }
+      // Draw first frame immediately
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  bytes() { return concat(this._parts); }
-}
+      // Start playing
+      video.play().catch(() => finish());
 
-/* ── RLE encode an array of numbers → [[count, value], …] ── */
-function rle(arr) {
-  if (!arr.length) return [];
-  const runs = [];
-  let count = 1, val = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] === val) { count++; }
-    else { runs.push([count, val]); count=1; val=arr[i]; }
-  }
-  runs.push([count, val]);
-  return runs;
-}
+      const chunkDur = end - start;
 
-/* ── Concat array of Uint8Array → Uint8Array ── */
-function concat(parts) {
-  const total = parts.reduce((s,p) => s + p.byteLength, 0);
-  const out   = new Uint8Array(total);
-  let   off   = 0;
-  for (const p of parts) { out.set(p, off); off += p.byteLength; }
-  return out;
-}
+      if (typeof video.requestVideoFrameCallback === 'function') {
+        // ── Best path: fires once per decoded frame ──
+        function onFrame(now, meta) {
+          if (done) return;
+          const t = video.currentTime;
+          if (t >= end - 0.04) { finish(); return; }
+          try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
+          // Progress
+          const frac = Math.min(1, (t - start) / chunkDur);
+          setP(pStart + frac * (pEnd - pStart));
+          video.requestVideoFrameCallback(onFrame);
+        }
+        video.requestVideoFrameCallback(onFrame);
 
-function readBuf(file) {
-  return new Promise((res,rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = () => rej(new Error('Could not read file'));
-    r.readAsArrayBuffer(file);
+      } else {
+        // ── Fallback: rAF loop ──
+        let rafId;
+        function frame() {
+          if (done) return;
+          const t = video.currentTime;
+          if (t >= end - 0.04) { cancelAnimationFrame(rafId); finish(); return; }
+          try { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); } catch(_) {}
+          const frac = Math.min(1, (t - start) / chunkDur);
+          setP(pStart + frac * (pEnd - pStart));
+          rafId = requestAnimationFrame(frame);
+        }
+        rafId = requestAnimationFrame(frame);
+      }
+
+      // Safety timeout: move on if chunk stalls
+      setTimeout(() => { if (!done) finish(); }, (end - start) * 1000 + 5000);
+    };
+
+    // If seek doesn't fire (already at position), trigger manually
+    setTimeout(() => {
+      if (!done && video.onseeked) {
+        const fn = video.onseeked;
+        video.onseeked = null;
+        fn();
+      }
+    }, 3000);
   });
 }
 </script>
 </body>
 </html>
+

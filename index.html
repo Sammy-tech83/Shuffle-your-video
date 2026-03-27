@@ -59,6 +59,9 @@
   .btn-download { display:none; width:100%; margin-top:18px; padding:15px; border:none; border-radius:14px; background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:0.1em; cursor:pointer; box-shadow:0 6px 24px rgba(34,197,94,0.3); transition:transform 0.15s; align-items:center; justify-content:center; gap:10px; }
   .btn-download.show { display:flex; }
   .btn-download:hover { transform:translateY(-2px); }
+  .btn-cloudconvert { display:none; width:100%; margin-top:10px; padding:12px 15px; border:2px solid #e8681a; border-radius:14px; background:#fff; color:#e8681a; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:background 0.15s,transform 0.15s; align-items:center; justify-content:center; gap:8px; }
+  .btn-cloudconvert.show { display:flex; }
+  .btn-cloudconvert:hover { background:#fff5f0; transform:translateY(-1px); }
 
   /* Hidden processing video */
   #procVideo { position:fixed; top:-9999px; left:-9999px; width:1px; height:1px; }
@@ -125,6 +128,10 @@
       </svg>
       Download Shuffled Video
     </button>
+    <button class="btn-cloudconvert" id="cloudConvertBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      Convert WebM → MP4 via CloudConvert
+    </button>
   </div>
 </div>
 
@@ -185,6 +192,7 @@ function resetUI() {
   $('processBtn').disabled = true;
   $('progressWrap').classList.remove('show');
   $('downloadBtn').classList.remove('show');
+  $('cloudConvertBtn').classList.remove('show');
   $('backBtn').classList.remove('locked');
   hideInfo(); setP(0, '');
 }
@@ -225,6 +233,7 @@ $('processBtn').onclick = () => {
   $('processBtn').disabled = true;
   $('progressWrap').classList.add('show');
   $('downloadBtn').classList.remove('show');
+  $('cloudConvertBtn').classList.remove('show');
   hideInfo();
   runShuffle(selectedFile);
 };
@@ -342,12 +351,30 @@ async function runShuffle(file) {
       a.click();
     };
 
-    // Show info about format
+    // Show info + CloudConvert button if WebM
     const infoEl = $('infoBox');
-    infoEl.textContent = ext === 'webm'
-      ? 'ℹ️ Saved as WebM — plays in Chrome, Firefox, Edge. To convert to MP4, open in CapCut and export.'
-      : '✅ Saved as MP4 — ready to use in CapCut, Premiere, and any editor.';
-    infoEl.className = 'info-box show';
+    const ccBtn  = $('cloudConvertBtn');
+
+    if (ext === 'webm') {
+      infoEl.textContent = 'ℹ️ Output is WebM. Download it first, then click the button below to convert it to MP4 on CloudConvert (free).';
+      infoEl.className = 'info-box show';
+      ccBtn.classList.add('show');
+      ccBtn.onclick = () => {
+        // Step 1: trigger download of the webm file
+        const a = document.createElement('a');
+        a.href = outUrl;
+        a.download = base + '_shuffled.webm';
+        a.click();
+        // Step 2: open CloudConvert webm→mp4 page after short delay
+        setTimeout(() => {
+          window.open('https://cloudconvert.com/webm-to-mp4', '_blank');
+        }, 1500);
+      };
+    } else {
+      infoEl.textContent = '✅ Saved as MP4 — ready to use in CapCut, Premiere, and any editor.';
+      infoEl.className = 'info-box show';
+      ccBtn.classList.remove('show');
+    }
 
   } catch(e) {
     fail(e);
